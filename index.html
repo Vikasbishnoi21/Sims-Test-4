@@ -2175,15 +2175,29 @@ function attachSliceClick(id,hitAreas,selProp,clearId){
 // TABLE
 // ═══════════════════════════════════════════════
 const COLS=[
-  {k:'t',lbl:'Ticker',al:'left'},{k:'s',lbl:'Shares',al:'right'},
-  {k:'exp',lbl:'Expiry',al:'center'},{k:'dte',lbl:'DTE',al:'center'},
-  {k:'str',lbl:'Strike',al:'right'},{k:'spot',lbl:'Spot',al:'right'},
-  {k:'ytd',lbl:'YTD %',al:'right'},{k:'otm',lbl:'OTM %',al:'right'},{k:'delta',lbl:'Delta',al:'right'},
-  {k:'pv',lbl:'Value',al:'right'},{k:'bid',lbl:'Bid',al:'right'},
-  {k:'ask',lbl:'Ask',al:'right'},{k:'mid',lbl:'Mid',al:'right'},
-  {k:'pt',lbl:'Premium',al:'right'},{k:'upfront',lbl:'Upfront%',al:'right'},
-  {k:'ann',lbl:'Ann %',al:'right'},{k:'ok',lbl:'Status',al:'center'},
-  {k:'save',lbl:'',al:'center'},{k:'del',lbl:'',al:'center'},
+  // Read-only identity
+  {k:'t',  lbl:'Ticker',  al:'left'},
+  // Editable inputs — grouped together
+  {k:'s',  lbl:'Shares',  al:'right'},
+  {k:'exp',lbl:'Expiry',  al:'center'},
+  {k:'str',lbl:'Strike',  al:'right'},
+  // Computed / read-only data
+  {k:'dte',  lbl:'DTE',     al:'center'},
+  {k:'spot', lbl:'Spot',    al:'right'},
+  {k:'ytd',  lbl:'YTD %',   al:'right'},
+  {k:'otm',  lbl:'OTM %',   al:'right'},
+  {k:'delta',lbl:'Delta',   al:'right'},
+  {k:'pv',   lbl:'Value',   al:'right'},
+  {k:'bid',  lbl:'Bid',     al:'right'},
+  {k:'ask',  lbl:'Ask',     al:'right'},
+  {k:'mid',  lbl:'Mid',     al:'right'},
+  {k:'pt',   lbl:'Premium', al:'right'},
+  {k:'upfront',lbl:'Upfront%',al:'right'},
+  {k:'ann',  lbl:'Ann %',   al:'right'},
+  {k:'ok',   lbl:'Status',  al:'center'},
+  // Actions — rightmost
+  {k:'save', lbl:'',        al:'center'},
+  {k:'del',  lbl:'',        al:'center'},
 ];
 const f$=v=>v==null?'—':'$'+Number(v).toFixed(2);
 const fK=v=>v==null?'—':'$'+(Number(v)/1000).toFixed(1)+'k';
@@ -2251,7 +2265,7 @@ function renderTable(){
     return `<tr data-rowid="${rowid}">
       ${COLS.map(c=>{
         const wide=c.k==='ask'&&r.wide;
-        if(['t','s','exp','str'].includes(c.k)){
+        if(['s','exp','str'].includes(c.k)){
           const rawVal=(c.k==='t')?r.t:(c.k==='s')?(r.s??''):(c.k==='exp')?(r.exp??''):(r.str??'');
           const type=(c.k==='s'||c.k==='str')?'number':'text';
           const step=(c.k==='str')?'0.5':(c.k==='s'?'1':'any');
@@ -2266,9 +2280,9 @@ function renderTable(){
           }
           return `<td style="text-align:${c.al}"><input class="cell-inp" data-k="${c.k}" ${type==='number'?`type="number" step="${step}"`:`type="text"`} value="${String(rawVal??'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"></td>`;
         }
-        if(c.k==='save') return `<td style="text-align:${c.al}"><button class="save-btn" ${!rowid?'disabled':''}>Save</button></td>`;
+        if(c.k==='save') return `<td style="text-align:${c.al}"><button class="save-btn" ${!rowid?'disabled':''}>Update</button></td>`;
         if(c.k==='del')  return `<td style="text-align:${c.al}"><button class="del-btn" ${!rowid?'disabled':''}>✕</button></td>`;
-        return `<td style="text-align:${c.al};color:${cellClr(c.k,r)};${c.k==='t'?'font-family:var(--fs);font-weight:700;font-size:13px':''}${c.k==='ann'||c.k==='ytd'?';font-weight:600':''}">
+        return `<td data-k="${c.k}" style="text-align:${c.al};color:${cellClr(c.k,r)};${c.k==='t'?'font-family:var(--fs);font-weight:700;font-size:13px':''}${c.k==='ann'||c.k==='ytd'?';font-weight:600':''}">
           ${wide?`<span title="Wide spread">⚠ ${cellTxt(c.k,r)}</span>`:cellTxt(c.k,r)}
         </td>`;
       }).join('')}
@@ -2280,14 +2294,14 @@ function renderTable(){
     const btn=tr.querySelector('.save-btn'); const delBtn=tr.querySelector('.del-btn');
     if(btn){ btn.onclick=async()=>{
       if(!rowId)return;
-      const t=(tr.querySelector('input[data-k="t"]')?.value||'').trim().toUpperCase();
+      const t=(tr.querySelector('td[data-k="t"]')?.textContent||tr.querySelector('input[data-k="t"]')?.value||'').trim().toUpperCase();
       const s=tr.querySelector('input[data-k="s"]')?.value;
       const expInp=tr.querySelector('input[data-k="exp"]'); const exp=(expInp?.dataset?.raw||expInp?.value||'').trim();
       const str=tr.querySelector('input[data-k="str"]')?.value;
       const updates={"Ticker":t,"Shares":s===''?'':Number(s),"Expiry":exp,"Strike":str===''?'':Number(str)};
       await saveRowEdits(rowId,updates,btn);
     };}
-    if(delBtn){ delBtn.onclick=()=>{ if(!rowId)return; const ticker=(tr.querySelector('input[data-k="t"]')?.value||rowId); openDelModal(rowId,ticker); }; }
+    if(delBtn){ delBtn.onclick=()=>{ if(!rowId)return; const ticker=(tr.querySelector('td[data-k="t"]')?.textContent||tr.querySelector('input[data-k="t"]')?.value||rowId).trim(); openDelModal(rowId,ticker); }; }
   });
 
   const tV=rows.reduce((s,r)=>s+r.pv,0);
