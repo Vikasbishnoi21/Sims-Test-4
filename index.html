@@ -1,0 +1,2507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pocket P&L</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080d1a;
+  --panel:   #0f1826;
+  --panel2:  #162033;
+  --border:  #263d5e;
+  --border2: #1c3050;
+  --text:    #f0f6ff;
+  --muted:   #8fb0d8;
+  --dim:     #4a6585;
+  --green:   #22d47a;
+  --lime:    #9fd430;
+  --yellow:  #e8c832;
+  --orange:  #d97820;
+  --red:     #e03a3a;
+  --blue:    #2db8e8;
+  --violet:  #9a5fe0;
+  --pink:    #ff5faa;
+  --cyan:    #1acab5;
+  --fm: 'IBM Plex Mono', monospace;
+  --fs: 'Outfit', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(56,209,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(56,209,255,0.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;padding:16px 20px;max-width:1400px;margin:0 auto}
+::-webkit-scrollbar{height:4px;width:4px;background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* EXTRA STATS ROW */
+.stats-extra{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
+.sc-sm{padding:10px 14px!important;min-width:160px;cursor:default;}
+.sc-sm .sc-val{font-size:22px!important;}
+.sc-toggle{display:flex;gap:4px;margin-top:7px;}
+.sc-toggle-btn{font-size:7px;font-family:var(--fs);font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.sc-toggle-btn.active{background:rgba(255,255,255,.09);color:var(--text);border-color:rgba(255,255,255,.22);}
+.sc-toggle-btn:hover:not(.active){color:var(--muted);border-color:var(--border2);}
+
+/* CHART ROW */
+.chart-row-extra{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:700px){.chart-row-extra{grid-template-columns:1fr;}}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border2)}
+.hdr-l{display:flex;align-items:baseline;gap:14px}
+.hdr-title{font-family:var(--fs);font-size:26px;font-weight:800;color:var(--text);letter-spacing:-1.5px}
+.hdr-title span{color:var(--blue)}
+.hdr-tag{font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:2px;color:var(--dim);text-transform:uppercase;padding:3px 9px;border:1px solid var(--border2);border-radius:3px}
+.hdr-r{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--muted);font-family:var(--fs)}
+.live{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 2s ease-in-out infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.reset-btn{padding:5px 12px;font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:1px;text-transform:uppercase;background:rgba(255,64,64,0.1);border:1px solid rgba(255,64,64,0.3);border-radius:20px;color:var(--red);cursor:pointer;transition:all .15s;display:none}
+.reset-btn.show{display:block}
+.reset-btn:hover{background:rgba(255,64,64,0.2);border-color:var(--red)}
+
+/* ════════════════════════════════════════════
+   SIMULATION BAR
+   ════════════════════════════════════════════ */
+.sim-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;
+  background:var(--panel2);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.sim-bar-label{
+  font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--dim);white-space:nowrap;margin-right:4px;
+}
+.sim-tabs{display:flex;gap:6px;flex:1;min-width:0;flex-wrap:wrap}
+.sim-tab{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 12px;
+  font-size:10px;font-family:var(--fs);font-weight:700;
+  border-radius:20px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;
+  transition:all .15s;white-space:nowrap;max-width:180px;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.sim-tab:hover{border-color:var(--blue);color:var(--blue);background:rgba(45,184,232,.08)}
+.sim-tab.active{border-color:var(--blue);background:rgba(45,184,232,.15);color:var(--blue)}
+.sim-tab.cmp-a{border-color:var(--green);background:rgba(34,212,122,.12);color:var(--green)}
+.sim-tab.cmp-b{border-color:var(--violet);background:rgba(154,95,224,.12);color:var(--violet)}
+.sim-tab.cmp-c{border-color:var(--orange);background:rgba(217,120,32,.12);color:var(--orange)}
+.sim-tab-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.sim-tab-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sim-actions{display:flex;gap:6px;margin-left:auto;flex-shrink:0}
+.sim-btn{
+  padding:5px 12px;font-size:9px;font-family:var(--fs);font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;border-radius:20px;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.sim-btn-new{border:1px solid rgba(34,212,122,.35);background:rgba(34,212,122,.08);color:var(--green)}
+.sim-btn-new:hover{background:rgba(34,212,122,.2);border-color:var(--green)}
+.sim-btn-save{border:1px solid rgba(45,184,232,.35);background:rgba(45,184,232,.08);color:var(--blue)}
+.sim-btn-save:hover{background:rgba(45,184,232,.2);border-color:var(--blue)}
+.sim-btn-save.saving{opacity:.6;cursor:not-allowed}
+.sim-btn-rename{border:1px solid rgba(232,200,50,.35);background:rgba(232,200,50,.08);color:var(--yellow)}
+.sim-btn-rename:hover{background:rgba(232,200,50,.2);border-color:var(--yellow)}
+.sim-btn-compare{border:1px solid rgba(154,95,224,.35);background:rgba(154,95,224,.08);color:var(--violet)}
+.sim-btn-compare:hover{background:rgba(154,95,224,.2);border-color:var(--violet)}
+.sim-btn-compare.active-cmp{border-color:var(--violet);background:rgba(154,95,224,.22);box-shadow:0 0 8px rgba(154,95,224,.25)}
+.sim-btn-del{border:1px solid rgba(224,58,58,.3);background:rgba(224,58,58,.06);color:var(--red)}
+.sim-btn-del:hover{background:rgba(224,58,58,.18);border-color:var(--red)}
+.sim-btn-refresh{border:1px solid rgba(26,202,181,.35);background:rgba(26,202,181,.08);color:var(--cyan)}
+.sim-btn-refresh:hover{background:rgba(26,202,181,.2);border-color:var(--cyan)}
+
+/* ════════════════════════════════════════════
+   COMPARE MODE HEADER
+   ════════════════════════════════════════════ */
+.cmp-header{
+  display:none;
+  align-items:center;gap:10px;
+  padding:8px 14px;
+  background:rgba(154,95,224,.07);
+  border:1px solid rgba(154,95,224,.25);
+  border-radius:8px;margin-bottom:14px;
+  font-family:var(--fs);font-size:10px;
+}
+.cmp-header.visible{display:flex}
+.cmp-header-label{font-weight:800;letter-spacing:.5px;color:var(--violet);text-transform:uppercase}
+.cmp-badges{display:flex;gap:8px;flex-wrap:wrap}
+.cmp-badge{
+  padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.5px;
+}
+.cmp-badge-a{background:rgba(34,212,122,.15);color:var(--green);border:1px solid rgba(34,212,122,.3)}
+.cmp-badge-b{background:rgba(154,95,224,.15);color:var(--violet);border:1px solid rgba(154,95,224,.3)}
+.cmp-badge-c{background:rgba(217,120,32,.15);color:var(--orange);border:1px solid rgba(217,120,32,.3)}
+.cmp-exit{
+  margin-left:auto;padding:4px 12px;font-size:9px;font-family:var(--fs);font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;border-radius:20px;
+  border:1px solid rgba(224,58,58,.3);background:rgba(224,58,58,.08);
+  color:var(--red);cursor:pointer;transition:all .15s;
+}
+.cmp-exit:hover{background:rgba(224,58,58,.2);border-color:var(--red)}
+
+/* Compare grid layout */
+.cmp-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.cmp-col-label{
+  text-align:center;padding:6px 10px;
+  font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  border-radius:6px 6px 0 0;border:1px solid rgba(255,255,255,.08);border-bottom:none;
+}
+.cmp-col-a{background:rgba(34,212,122,.08);color:var(--green);}
+.cmp-col-b{background:rgba(154,95,224,.08);color:var(--violet);}
+.cmp-col-c{background:rgba(217,120,32,.08);color:var(--orange);}
+.cmp-panel{border-radius:0 0 8px 8px !important}
+.cmp-section-title{
+  font-size:11px;font-family:var(--fs);font-weight:800;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--muted);padding:10px 0 6px;
+}
+
+/* STAT CARDS */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.sc{background:var(--panel);border:1px solid var(--border2);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color .2s,transform .15s;cursor:default}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--a,var(--blue))}
+.sc-label{font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
+.sc-val{font-family:var(--fs);font-size:26px;font-weight:800;color:var(--a,var(--blue));line-height:1;margin-bottom:5px;letter-spacing:-1px}
+.sc-sub{font-size:9px;font-family:var(--fs);color:var(--dim)}
+
+/* CHARTS */
+.charts-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.charts-bot{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.panel{background:var(--panel);border:1px solid var(--border2);border-radius:8px;overflow:hidden;transition:border-color .2s}
+.ph{padding:11px 14px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;background:var(--panel2)}
+.pt{font-size:11px;font-family:var(--fs);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text)}
+.pb{font-size:9px;font-family:var(--fs);font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase}
+.chart-hint{font-size:8px;font-family:var(--fs);color:var(--dim);padding:0 14px 8px;letter-spacing:.5px}
+.pb{display:flex;align-items:center;gap:8px}
+.chart-clear{font-size:8px;font-family:var(--fs);font-weight:700;letter-spacing:.5px;color:var(--orange);cursor:pointer;opacity:0;transition:opacity .15s;text-transform:uppercase}
+.chart-clear.vis{opacity:1}
+.chart-clear:hover{color:var(--red)}
+
+/* TABLE */
+.tbl-panel{background:var(--panel);border:1px solid var(--border2);border-radius:8px;overflow:hidden}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border2);background:var(--panel2)}
+.chip{padding:5px 13px;font-size:10px;font-weight:700;font-family:var(--fs);letter-spacing:.3px;text-transform:uppercase;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{border-color:var(--blue);color:var(--blue);background:rgba(56,209,255,.08);transform:translateY(-1px)}
+.chip.active{border-color:var(--blue);background:rgba(56,209,255,.15);color:var(--blue);box-shadow:0 0 10px rgba(56,209,255,.15)}
+.chip.red-chip:hover,.chip.red-chip.active{border-color:var(--red);color:var(--red);background:rgba(255,64,64,.12);}
+.chip.grn-chip:hover,.chip.grn-chip.active{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.12);}
+.chip.ylw-chip:hover,.chip.ylw-chip.active{border-color:var(--yellow);color:var(--yellow);background:rgba(255,228,77,.12);}
+.chip.vlt-chip:hover,.chip.vlt-chip.active{border-color:var(--violet);color:var(--violet);background:rgba(184,120,255,.12);}
+.chip-sep{width:1px;height:20px;background:var(--border2);flex-shrink:0;margin:0 2px}
+.srch{padding:5px 13px;font-size:11px;background:var(--panel);border:1px solid var(--border);border-radius:20px;color:var(--text);outline:none;width:130px;font-family:var(--fm);transition:all .15s;-webkit-appearance:none}
+.srch:focus{border-color:var(--blue);width:155px}
+.srch::placeholder{color:var(--dim)}
+.rc{font-size:9px;font-family:var(--fs);color:var(--dim);white-space:nowrap;margin-left:auto}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:9px 10px;font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border2);white-space:nowrap;cursor:pointer;user-select:none;text-align:right;background:var(--panel2);transition:all .15s}
+thead th:first-child{text-align:left}
+thead th:hover{color:var(--blue);background:rgba(56,209,255,.06)}
+thead th.sorted{color:var(--blue)}
+thead th .arr{color:var(--blue);margin-left:3px}
+tbody tr{border-bottom:1px solid rgba(38,61,94,.5);transition:background .1s}
+tbody tr:hover{background:rgba(56,209,255,.06)}
+tbody td{padding:8px 10px;text-align:right;font-size:11.5px;white-space:nowrap;color:var(--muted);letter-spacing:-.2px}
+tbody td:first-child{text-align:left}
+tfoot td{padding:9px 10px;text-align:right;font-size:11px;font-family:var(--fs);font-weight:700;color:var(--text);border-top:2px solid var(--border);background:var(--panel2)}
+tfoot td:first-child{text-align:left}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:8px;font-family:var(--fs);font-weight:600;color:var(--dim);letter-spacing:.5px;padding:9px 14px;border-top:1px solid var(--border2)}
+.leg span{display:flex;align-items:center;gap:5px}
+.ld{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* Editable cells */
+.cell-inp{width:100%;max-width:120px;background:rgba(255,255,255,0.02);border:1px solid rgba(38,61,94,.7);color:var(--text);padding:6px 8px;border-radius:8px;outline:none;font-family:var(--fm);font-size:11px;}
+.cell-inp:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(45,184,232,.12)}
+.save-btn{padding:6px 10px;font-size:9px;font-family:var(--fs);font-weight:800;letter-spacing:.8px;text-transform:uppercase;border-radius:999px;border:1px solid rgba(45,184,232,.35);background:rgba(45,184,232,.10);color:var(--blue);cursor:pointer;}
+.save-btn[disabled]{opacity:.4;cursor:not-allowed;}
+.save-btn.ok{border-color:rgba(34,212,122,.4);background:rgba(34,212,122,.12);color:var(--green);}
+.save-btn.err{border-color:rgba(224,58,58,.45);background:rgba(224,58,58,.12);color:var(--red);}
+.del-btn{padding:6px 9px;font-size:11px;font-family:var(--fs);font-weight:800;border-radius:999px;border:1px solid rgba(224,58,58,.3);background:rgba(224,58,58,.08);color:var(--red);cursor:pointer;line-height:1;transition:all .15s;}
+.del-btn:hover{background:rgba(224,58,58,.22);border-color:var(--red);transform:scale(1.08);}
+.add-row-btn{margin-left:auto;padding:5px 14px;font-size:9px;font-family:var(--fs);font-weight:800;letter-spacing:1px;text-transform:uppercase;border-radius:20px;border:1px solid rgba(34,212,122,.35);background:rgba(34,212,122,.08);color:var(--green);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.add-row-btn:hover{background:rgba(34,212,122,.18);border-color:var(--green);}
+
+/* MODAL OVERLAY */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px 28px;width:100%;max-width:420px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6);  -webkit-overflow-scrolling:touch;
+}
+.modal-title{font-family:var(--fs);font-size:16px;font-weight:800;color:var(--text);margin-bottom:18px;letter-spacing:-.5px;}
+.modal-title span{color:var(--green);}
+.modal-close{position:absolute;top:14px;right:16px;font-size:16px;color:var(--dim);cursor:pointer;background:none;border:none;line-height:1;transition:color .15s;}
+.modal-close:hover{color:var(--text);}
+.mf-row{margin-bottom:14px;}
+.mf-label{font-size:9px;font-family:var(--fs);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block;}
+.mf-inp{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--text);padding:9px 11px;border-radius:8px;outline:none;font-family:var(--fm);font-size:12px;transition:border-color .15s,box-shadow .15s;}
+.mf-inp:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(45,184,232,.12);}
+.mf-inp::placeholder{color:var(--dim);}
+.mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+.modal-cancel{padding:9px 18px;font-size:10px;font-family:var(--fs);font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+.modal-cancel:hover{border-color:var(--muted);color:var(--text);}
+.modal-submit{padding:9px 22px;font-size:10px;font-family:var(--fs);font-weight:800;letter-spacing:.8px;text-transform:uppercase;border-radius:999px;border:1px solid rgba(34,212,122,.4);background:rgba(34,212,122,.12);color:var(--green);cursor:pointer;transition:all .15s;}
+.modal-submit:hover{background:rgba(34,212,122,.22);border-color:var(--green);}
+.modal-submit[disabled]{opacity:.4;cursor:not-allowed;}
+.modal-submit.err{border-color:rgba(224,58,58,.45);background:rgba(224,58,58,.12);color:var(--red);}
+.modal-del-title{font-family:var(--fs);font-size:16px;font-weight:800;color:var(--text);margin-bottom:8px;letter-spacing:-.5px;}
+.modal-del-title span{color:var(--red);}
+.modal-del-body{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.modal-del-body strong{color:var(--text);}
+.modal-confirm-del{padding:9px 22px;font-size:10px;font-family:var(--fs);font-weight:800;letter-spacing:.8px;text-transform:uppercase;border-radius:999px;border:1px solid rgba(224,58,58,.45);background:rgba(224,58,58,.12);color:var(--red);cursor:pointer;transition:all .15s;}
+.modal-confirm-del:hover{background:rgba(224,58,58,.25);border-color:var(--red);}
+.modal-confirm-del[disabled]{opacity:.4;cursor:not-allowed;}
+
+/* Saved snapshot indicator */
+.sim-saved-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--green);display:inline-block;
+  opacity:0;transition:opacity .3s;margin-left:3px;
+}
+.sim-saved-dot.show{opacity:1}
+
+/* Compare select checkboxes in sim-tab */
+.cmp-check{
+  width:14px;height:14px;border-radius:3px;border:1px solid var(--border);
+  background:transparent;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:8px;transition:all .15s;
+}
+.sim-tab.cmp-a .cmp-check{background:var(--green);border-color:var(--green);color:#000}
+.sim-tab.cmp-b .cmp-check{background:var(--violet);border-color:var(--violet);color:#fff}
+.sim-tab.cmp-c .cmp-check{background:var(--orange);border-color:var(--orange);color:#fff}
+
+/* ── MOBILE ── */
+body{ -webkit-text-size-adjust:100%; }
+button,input{ -webkit-tap-highlight-color: transparent; }
+/* ── Tablet (≤900px) ────────────────────────────────────────── */
+@media (max-width: 900px){
+  .app{padding:12px 14px}
+  .hdr{flex-direction:column;align-items:flex-start;gap:10px}
+  .hdr-r{width:100%;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .hdr-title{font-size:22px}
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .sc{padding:12px 14px}
+  .sc-val{font-size:22px}
+  .sc-toggle-btn{padding:3px 9px;font-size:7.5px}
+  .charts-top{grid-template-columns:1fr}
+  .charts-bot{grid-template-columns:1fr}
+  .chart-row-extra{grid-template-columns:1fr}
+  .cmp-grid-2,.cmp-grid-3{grid-template-columns:1fr}
+  thead th{padding:10px 8px;font-size:10px}
+  tbody td{padding:9px 8px;font-size:12px}
+  .cell-inp{max-width:140px;font-size:12px}
+  .stats-extra{gap:8px}
+}
+
+/* ── iPhone / small phones (≤520px) ────────────────────────── */
+@media (max-width: 520px){
+  /* Safe area insets for notch/home bar */
+  .app{
+    padding: 10px max(12px, env(safe-area-inset-right)) 24px max(12px, env(safe-area-inset-left));
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  /* Header */
+  .hdr{gap:8px;margin-bottom:12px}
+  .hdr-title{font-size:19px}
+  .hdr-l{gap:8px;align-items:baseline}
+  .hdr-r{flex-wrap:wrap;gap:8px;font-size:10px}
+  .hdr-tag{font-size:8px;padding:2px 7px}
+
+  /* Sim bar — stacked, scrollable tabs */
+  .sim-bar{flex-direction:column;align-items:stretch;gap:8px;padding:10px 12px}
+  .sim-bar-label{font-size:8px;margin-bottom:0}
+  .sim-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}
+  .sim-tabs::-webkit-scrollbar{display:none}
+  .sim-tab{flex-shrink:0;min-height:34px;padding:5px 10px;font-size:9px}
+  .sim-tab-name{max-width:90px}
+  /* Actions: 2-row wrap */
+  .sim-actions{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:5px;
+    margin-left:0;
+    width:100%
+  }
+  .sim-btn{
+    min-height:38px;
+    font-size:9px;
+    padding:6px 4px;
+    justify-content:center;
+    white-space:nowrap
+  }
+
+  /* Stats: 2 columns on phone */
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px}
+  .sc{padding:10px 11px}
+  .sc-val{font-size:19px;letter-spacing:-.5px}
+  .sc-label{font-size:8px;letter-spacing:1px;margin-bottom:5px}
+  .sc-sub{font-size:8px}
+  .sc-toggle{gap:3px;margin-top:5px;flex-wrap:wrap}
+  .sc-toggle-btn{padding:3px 8px;font-size:7px;min-height:26px;touch-action:manipulation}
+
+  /* Stats extra row */
+  .stats-extra{grid-template-columns:repeat(2,1fr);gap:8px}
+
+  /* Chips / filters */
+  .chips{gap:6px;padding:8px 10px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex-shrink:0;padding:6px 12px;font-size:9px;min-height:32px;touch-action:manipulation}
+
+  /* Search */
+  .srch{width:100%;min-width:0;padding:8px 12px;font-size:13px;border-radius:6px}
+  .srch:focus{width:100%}
+
+  /* Table controls row */
+  .rc{width:100%;margin-left:0;flex-wrap:wrap;gap:6px}
+  .leg{gap:8px;flex-wrap:wrap}
+
+  /* Table */
+  thead th{padding:8px 6px;font-size:9px;white-space:nowrap}
+  tbody td{padding:8px 6px;font-size:11px}
+  .cell-inp{max-width:100px;font-size:11px}
+  .tw{-webkit-overflow-scrolling:touch}
+
+  /* Charts — let canvas resize cleanly */
+  .chart-panel{padding:0 0 8px}
+  .chart-title{font-size:10px;padding:10px 12px 4px}
+  canvas{max-width:100%;display:block}
+
+  /* Compare header */
+  .cmp-header{padding:8px 12px}
+  .cmp-badge{font-size:8px;padding:2px 8px}
+
+  /* Modals — full screen on iPhone */
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal{
+    border-radius:16px 16px 0 0;
+    max-width:100%!important;
+    width:100%;
+    padding:20px 16px max(20px,env(safe-area-inset-bottom)) 16px;
+    max-height:90vh;
+    overflow-y:auto
+  }
+  .modal-submit,.modal-cancel{min-height:44px;font-size:12px}
+  .mf-inp{font-size:16px} /* prevents iOS zoom on input focus */
+}
+
+/* ── Very small (≤380px, iPhone SE) ────────────────────────── */
+@media(max-width:380px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .sim-actions{grid-template-columns:repeat(3,1fr)}
+  .sc-val{font-size:17px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="hdr-title">Pocket P&L <span>_</span></div>
+    <div class="hdr-tag">Covered Calls</div>
+  </div>
+  <div class="hdr-r">
+    <div class="live"></div>
+    <span id="liveMeta">Loading…</span>
+    <button class="reset-btn" id="resetBtn" onclick="resetAll()">✕ Clear Selection</button>
+  </div>
+</div>
+
+<!-- SIMULATION BAR -->
+<div class="sim-bar">
+  <span class="sim-bar-label">Simulations</span>
+  <div class="sim-tabs" id="simTabs"><!-- tabs injected --></div>
+    <div class="sim-actions">
+    <button class="sim-btn sim-btn-refresh" onclick="refreshCurrentSim()" title="Reload live data for current simulation">↻ Refresh</button>
+    <button class="sim-btn sim-btn-save" id="btnSaveSim" onclick="saveCurrentSnapshot()" title="Re-run Alpaca refresh on this sim sheet">⬇ Save</button>
+    <button class="sim-btn sim-btn-rename" onclick="openRenameModal()" title="Rename this simulation">✎ Rename</button>
+    <button class="sim-btn sim-btn-compare" id="btnCompare" onclick="toggleCompareMode()" title="Compare simulations side by side">⊞ Compare</button>
+    <button class="sim-btn" style="border:1px solid rgba(26,202,181,.35);background:rgba(26,202,181,.08);color:var(--cyan)" onclick="openDuplicateModal()" title="Duplicate current simulation">⧉ Duplicate</button>
+    <button class="sim-btn sim-btn-new" onclick="openNewSimModal()" title="Create a new simulation">＋ New Sim</button>
+    <button class="sim-btn sim-btn-del" onclick="openDeleteSimModal()" title="Delete this simulation">✕ Delete</button>
+  </div>
+</div>
+
+<!-- COMPARE MODE HEADER -->
+<div class="cmp-header" id="cmpHeader">
+  <span class="cmp-header-label">⊞ Compare Mode</span>
+  <div class="cmp-badges" id="cmpBadges"><!-- injected --></div>
+  <button class="cmp-exit" onclick="exitCompareMode()">✕ Exit Compare</button>
+</div>
+
+<!-- MAIN VIEW (single sim) -->
+<div id="mainView">
+  <!-- STATS -->
+  <div class="stats" id="stats"></div>
+
+  <!-- CHARTS TOP -->
+  <div class="charts-top">
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">Ann Return %</span>
+        <span class="pb" style="background:rgba(0,255,136,.08);color:var(--green)">
+          Bar · click to filter
+          <span class="chart-clear" id="clearBar" onclick="clearBarSel()">clear</span>
+        </span>
+      </div>
+      <div class="chart-hint">Click bars to filter table ↓</div>
+      <div style="padding:4px 12px 12px"><canvas id="cBar"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">Premium by Expiry</span>
+        <span class="pb" style="background:rgba(56,209,255,.08);color:var(--blue)">
+          Donut · click to filter
+          <span class="chart-clear" id="clearPie" onclick="clearPieSel()">clear</span>
+        </span>
+      </div>
+      <div class="chart-hint">Click slice to filter table ↓</div>
+      <div style="padding:4px 12px 12px"><canvas id="cPie"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">YTD Performance</span>
+        <span class="pb" style="background:rgba(255,228,77,.08);color:var(--yellow)">
+          Bar · click to filter
+          <span class="chart-clear" id="clearYTD" onclick="clearYTDSel()">clear</span>
+        </span>
+      </div>
+      <div class="chart-hint">Click bars to filter table ↓</div>
+      <div style="padding:4px 12px 12px"><canvas id="cYTD"></canvas></div>
+    </div>
+  </div>
+
+  <!-- CHARTS BOT -->
+  <div class="charts-bot">
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">OTM% vs Ann% Scatter</span>
+        <span class="pb" style="background:rgba(184,120,255,.08);color:var(--violet)">Bubble · size = premium</span>
+      </div>
+      <div style="padding:8px 12px 12px"><canvas id="cOTM"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph">
+        <span class="pt">Position Value</span>
+        <span class="pb" style="background:rgba(255,145,36,.08);color:var(--orange)">
+          Donut · click to filter
+          <span class="chart-clear" id="clearDonut" onclick="clearDonutSel()">clear</span>
+        </span>
+      </div>
+      <div class="chart-hint">Click slice to filter table ↓</div>
+      <div style="padding:4px 12px 12px"><canvas id="cDonut"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SECTOR + MCAP CHARTS -->
+  <div class="chart-row-extra" id="extraChartsRow">
+    <div class="chart-panel" id="sectorChartPanel">
+      <div class="chart-title">Sector Allocation <span class="chart-sub" style="font-size:9px;color:var(--dim);font-family:var(--fs)">by position value</span></div>
+      <div style="padding:4px 12px 12px"><canvas id="cSector"></canvas></div>
+    </div>
+    <div class="chart-panel" id="mcapChartPanel">
+      <div class="chart-title">Market Cap Mix <span class="chart-sub" style="font-size:9px;color:var(--dim);font-family:var(--fs)">by position value</span></div>
+      <div style="padding:4px 12px 12px"><canvas id="cMcap"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="tbl-panel">
+    <div class="ph">
+      <span class="pt">All Positions</span>
+      <span style="display:flex;align-items:center;gap:10px;margin-left:auto">
+        <button class="add-row-btn" onclick="openAddModal()">＋ Add Position</button>
+        <span class="pb" style="background:rgba(56,209,255,.08);color:var(--blue);margin-left:0" id="tblBadge">0 rows</span>
+      </span>
+    </div>
+    <div class="chips">
+      <button class="chip active" data-f="all">All</button>
+      <button class="chip" id="chipExp1" data-f="exp1">Expiry 1</button>
+      <button class="chip" id="chipExp2" data-f="exp2">Expiry 2</button>
+      <div class="chip-sep"></div>
+      <button class="chip grn-chip" data-f="ann50">Ann &gt;50%</button>
+      <button class="chip ylw-chip" data-f="ann25">Ann 25–50%</button>
+      <button class="chip vlt-chip" data-f="ann10">Ann &lt;10%</button>
+      <div class="chip-sep"></div>
+      <button class="chip grn-chip" data-f="otm20">OTM &gt;20%</button>
+      <button class="chip ylw-chip" data-f="otm10">OTM 10–20%</button>
+      <div class="chip-sep"></div>
+      <button class="chip red-chip" data-f="warn">⚠ Issues</button>
+      <button class="chip ylw-chip" data-f="wide">Wide Spread</button>
+      <input class="srch" id="srch" placeholder="search…">
+      <span class="rc" id="tblBadge2"></span>
+    </div>
+    <div class="tw"><table>
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+      <tfoot><tr id="tfoot"></tr></tfoot>
+    </table></div>
+    <div class="leg">
+      <span><span class="ld" style="background:var(--green)"></span>Ann &gt;50% / OTM &gt;20%</span>
+      <span><span class="ld" style="background:var(--yellow)"></span>Ann 25–50% / OTM 10–20%</span>
+      <span><span class="ld" style="background:var(--red)"></span>Ann &lt;10% / negative YTD</span>
+      <span><span class="ld" style="background:var(--orange)"></span>Wide spread (ask−bid &gt;$0.30)</span>
+      <span style="margin-left:auto;opacity:.5">edit ticker/shares/expiry/strike → save</span>
+    </div>
+  </div>
+</div><!-- /mainView -->
+
+<!-- COMPARE VIEW -->
+<div id="cmpView" style="display:none"></div>
+
+</div><!-- /app -->
+
+<!-- ═══════════════ ADD ROW MODAL ═══════════════ -->
+<div class="modal-overlay" id="addRowModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAddModal()">✕</button>
+    <div class="modal-title">Add <span>New Position</span></div>
+    <div class="mf-grid">
+      <div class="mf-row">
+        <label class="mf-label" for="mf-ticker">Ticker</label>
+        <input class="mf-inp" id="mf-ticker" type="text" placeholder="e.g. AAPL" autocomplete="off" style="text-transform:uppercase">
+      </div>
+      <div class="mf-row">
+        <label class="mf-label" for="mf-shares">Shares</label>
+        <input class="mf-inp" id="mf-shares" type="number" step="1" min="0" placeholder="e.g. 100">
+      </div>
+    </div>
+    <div class="mf-grid">
+      <div class="mf-row">
+        <label class="mf-label" for="mf-expiry">Expiry</label>
+        <input class="mf-inp" id="mf-expiry" type="text" placeholder="YYYY-MM-DD">
+      </div>
+      <div class="mf-row">
+        <label class="mf-label" for="mf-strike">Strike</label>
+        <input class="mf-inp" id="mf-strike" type="number" step="0.5" min="0" placeholder="e.g. 200">
+      </div>
+    </div>
+    <div class="mf-row">
+      <label class="mf-label" for="mf-contracts">Contracts</label>
+      <input class="mf-inp" id="mf-contracts" type="number" step="1" min="0" placeholder="e.g. 1" style="max-width:180px">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="modal-submit" id="addRowSubmit" onclick="submitAddRow()">＋ Add Row</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CONFIRM DELETE ROW MODAL ═══════════════ -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-del-title">Delete <span>Position</span></div>
+    <div class="modal-del-body" id="delModalBody">
+      Remove <strong id="delModalTicker"></strong> from your sheet?<br>
+      This cannot be undone.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeDelModal()">Cancel</button>
+      <button class="modal-confirm-del" id="delModalConfirm" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ NEW SIMULATION MODAL ═══════════════ -->
+<div class="modal-overlay" id="newSimModal">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closeNewSimModal()">✕</button>
+    <div class="modal-title">Create <span>New Simulation</span></div>
+    <div class="mf-row">
+      <label class="mf-label" for="nsm-name">Simulation Name</label>
+      <input class="mf-inp" id="nsm-name" type="text" placeholder="e.g. Aggressive Strikes, Conservative Q1…" autocomplete="off">
+    </div>
+    <div class="mf-row">
+      <label class="mf-label" for="nsm-mode">Starting Point</label>
+      <select class="mf-inp" id="nsm-mode" style="cursor:pointer">
+        <option value="master">Copy Master — start with all current positions &amp; data</option>
+        <option value="blank">Blank — empty sheet with correct column structure</option>
+      </select>
+    </div>
+    <div class="mf-row" style="font-size:10px;color:var(--dim);font-family:var(--fs);line-height:1.5">
+      A new Google Sheet tab will be created (prefixed <code style="color:var(--cyan)">SIM_</code>). Formulas, formats and column order are always preserved.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeNewSimModal()">Cancel</button>
+      <button class="modal-submit" id="nsmSubmit" onclick="submitNewSim()">＋ Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ RENAME SIMULATION MODAL ═══════════════ -->
+<div class="modal-overlay" id="renameSimModal">
+  <div class="modal" style="max-width:340px">
+    <button class="modal-close" onclick="closeRenameModal()">✕</button>
+    <div class="modal-title" style="color:var(--yellow)">Rename <span style="color:var(--text)">Simulation</span></div>
+    <div class="mf-row">
+      <label class="mf-label" for="rnm-name">New Name</label>
+      <input class="mf-inp" id="rnm-name" type="text" placeholder="Simulation name…" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeRenameModal()">Cancel</button>
+      <button class="modal-submit" onclick="submitRename()" style="border-color:rgba(232,200,50,.4);background:rgba(232,200,50,.12);color:var(--yellow)">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DUPLICATE SIMULATION MODAL ═══════════════ -->
+<div class="modal-overlay" id="dupSimModal">
+  <div class="modal" style="max-width:360px">
+    <button class="modal-close" onclick="closeDuplicateModal()">✕</button>
+    <div class="modal-title" style="color:var(--cyan)">Duplicate <span style="color:var(--text)">Simulation</span></div>
+    <div class="mf-row">
+      <label class="mf-label" for="dup-name">New Simulation Name</label>
+      <input class="mf-inp" id="dup-name" type="text" placeholder="Copy name…" autocomplete="off">
+    </div>
+    <div class="mf-row" style="font-size:10px;color:var(--dim);font-family:var(--fs);line-height:1.5">
+      Creates an exact copy of the current simulation sheet — all data, values, and formulas preserved. The copy is fully independent; changes don't affect the original.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeDuplicateModal()">Cancel</button>
+      <button class="modal-submit" id="dupSubmit" onclick="submitDuplicate()" style="border-color:rgba(26,202,181,.4);background:rgba(26,202,181,.12);color:var(--cyan)">⧉ Duplicate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DELETE SIMULATION MODAL ═══════════════ -->
+<div class="modal-overlay" id="deleteSimModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-del-title">Delete <span>Simulation</span></div>
+    <div class="modal-del-body">
+      Delete simulation <strong id="delSimName"></strong>?<br>
+      All saved snapshot data will be lost. This cannot be undone.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeDeleteSimModal()">Cancel</button>
+      <button class="modal-confirm-del" id="delSimConfirm" onclick="confirmDeleteSim()">Delete Simulation</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+window.APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLk9ZwKaflS7gla7LmGC-K7_n0EkGQzRzfZh_eVB2KGMm-x8vuAdacJX85C-pAVqS/exec";
+window.APPS_SCRIPT_TOKEN = "afojvbkrghreouugwhar4n8";
+var APPS_SCRIPT_URL = window.APPS_SCRIPT_URL;
+var APPS_SCRIPT_TOKEN = window.APPS_SCRIPT_TOKEN;
+
+// ═══════════════════════════════════════════════════════════════
+// SIMULATION MANAGER
+// Simulations are Google Sheet tabs prefixed "SIM_"
+// Local state is synced from the sheet on load and after mutations
+// Each sim: { sheetName, name, createdAt }
+// ═══════════════════════════════════════════════════════════════
+const SIM_PREFIX = 'SIM_';
+const MASTER_SHEET = 'Master';
+
+// CMP slot colors
+const CMP_CLASSES       = ['cmp-a','cmp-b','cmp-c'];
+const CMP_LABELS        = ['A','B','C'];
+const CMP_COLORS        = ['var(--green)','var(--violet)','var(--orange)'];
+const CMP_BADGE_CLASSES = ['cmp-badge-a','cmp-badge-b','cmp-badge-c'];
+
+let simulations    = [];       // [{sheetName, name}]
+let activeSheetName = MASTER_SHEET; // currently viewed sheet
+let compareMode    = false;
+let cmpSlots       = [];       // up to 3 sheetNames
+let cmpDataCache   = {};       // sheetName → RAW[] for compare
+
+// Local metadata store (names, order) — sheet names are the source of truth
+const META_KEY = 'ppl_sim_meta';
+function loadMeta(){
+  try{ return JSON.parse(localStorage.getItem(META_KEY)||'{}'); } catch(e){ return {}; }
+}
+function saveMeta(meta){
+  try{ localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch(e){}
+}
+function getActiveSim(){
+  return simulations.find(s=>s.sheetName===activeSheetName) || simulations[0] || null;
+}
+function makeSimName(base){
+  // ensure uniqueness
+  const existing = simulations.map(s=>s.name);
+  let name = base, i = 2;
+  while(existing.includes(name)) name = base + ' ' + (i++);
+  return name;
+}
+
+// Fetch list of SIM_ sheets from backend
+async function syncSimList(){
+  try{
+    const res  = await postToSheet({ action:'listSimSheets' });
+    const meta = loadMeta();
+    // Build simulations array: Master first, then SIM_ sheets in order
+    simulations = [
+      { sheetName: MASTER_SHEET, name: 'Master (Live)', num: 0 },
+      ...(res.sheets||[]).map(sn => {
+        // Extract number prefix: SIM_3_Aggressive → num=3, rawName="Aggressive"
+        const m       = sn.slice(SIM_PREFIX.length).match(/^(\d+)_(.*)/);
+        const num     = m ? parseInt(m[1], 10) : 0;
+        const rawName = m ? m[2].trim() : sn.replace(/^SIM_/, '').trim();
+        // User may have saved a custom display name in meta
+        const displayName = meta[sn] || rawName;
+        return { sheetName: sn, name: displayName, num };
+      }).sort((a,b) => a.num - b.num)
+    ];
+    // Ensure activeSheetName is valid
+    if(!simulations.find(s=>s.sheetName===activeSheetName)){
+      activeSheetName = MASTER_SHEET;
+    }
+  } catch(e){
+    console.warn('syncSimList failed:', e);
+    if(simulations.length===0){
+      simulations = [{ sheetName: MASTER_SHEET, name: 'Master (Live)', num: 0 }];
+    }
+  }
+}
+
+// Persist display name in localStorage (sheet names are SIM_... but display names can differ)
+function saveSimDisplayName(sheetName, displayName){
+  const meta = loadMeta();
+  meta[sheetName] = displayName;
+  saveMeta(meta);
+  const s = simulations.find(s=>s.sheetName===sheetName);
+  if(s) s.name = displayName;
+}
+
+// POST helper
+async function postToSheet(body){
+  const res  = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ token: APPS_SCRIPT_TOKEN, ...body })
+  });
+  const json = await res.json().catch(()=>null);
+  if(!res.ok) throw new Error((json&&json.error)||'HTTP '+res.status);
+  if(json&&json.ok===false) throw new Error(json.error||'Request failed');
+  return json;
+}
+
+// JSONP loader for a specific sheet tab
+function loadSheetTab(sheetName){
+  return new Promise((resolve, reject)=>{
+    const cbName = '__pnlCb_'+Date.now();
+    const timer  = setTimeout(()=>{ cleanup(); reject(new Error('Timeout loading '+sheetName)); }, 15000);
+    function cleanup(){ try{delete window[cbName];}catch(e){} clearTimeout(timer); }
+    window[cbName] = (payload)=>{ cleanup(); resolve(payload); };
+    const sep = APPS_SCRIPT_URL.includes('?')?'&':'?';
+    const url = APPS_SCRIPT_URL+sep+'sheet='+encodeURIComponent(sheetName)+'&callback='+encodeURIComponent(cbName)+'&_='+Date.now();
+    const s   = document.createElement('script');
+    s.src     = url; s.async = true;
+    s.onerror = ()=>{ cleanup(); reject(new Error('Script load failed')); };
+    document.head.appendChild(s);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIMULATION TABS RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderSimTabs(){
+  const container = document.getElementById('simTabs');
+  if(!container) return;
+  container.innerHTML = simulations.map(sim=>{
+    const isActive   = sim.sheetName===activeSheetName;
+    const cmpSlotIdx = cmpSlots.indexOf(sim.sheetName);
+    const cmpClass   = (compareMode && cmpSlotIdx>=0) ? CMP_CLASSES[cmpSlotIdx] : '';
+    const cls = ['sim-tab', isActive&&!compareMode?'active':'', cmpClass].filter(Boolean).join(' ');
+    const checkMark = compareMode
+      ? `<span class="cmp-check">${cmpSlotIdx>=0?CMP_LABELS[cmpSlotIdx]:''}</span>`
+      : '';
+    const isMaster = sim.sheetName===MASTER_SHEET;
+    // Show number badge for sim tabs (not Master)
+    const numBadge = !isMaster && sim.num
+      ? `<span style="font-size:8px;opacity:.6;font-family:var(--fs);font-weight:700">#${sim.num}</span>`
+      : '';
+    return `<button class="${cls}" onclick="handleSimTabClick('${sim.sheetName}')" title="${sim.sheetName}">
+      ${checkMark}
+      ${isMaster ? '<span style="font-size:8px;opacity:.5">⬤</span>' : ''}
+      ${numBadge}
+      <span class="sim-tab-name">${sim.name}</span>
+    </button>`;
+  }).join('');
+}
+
+function handleSimTabClick(sheetName){
+  if(compareMode) toggleCmpSlot(sheetName);
+  else            switchSim(sheetName);
+}
+
+async function switchSim(sheetName){
+  activeSheetName = sheetName;
+  renderSimTabs();
+  const meta = document.getElementById('liveMeta');
+  if(meta) meta.textContent = 'Loading…';
+  try{
+    const payload = await loadSheetTab(sheetName);
+    processPayload(payload, sheetName);
+  } catch(e){
+    if(meta) meta.textContent = 'Error: '+e.message;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPARE MODE
+// ═══════════════════════════════════════════════════════════════
+function toggleCompareMode(){
+  compareMode=!compareMode;
+  const btn=document.getElementById('btnCompare');
+  if(compareMode){
+    btn.classList.add('active-cmp');
+    if(cmpSlots.length===0 && activeSheetName) cmpSlots=[activeSheetName];
+    renderCompareModeUI();
+  } else {
+    exitCompareMode(); return;
+  }
+  renderSimTabs();
+  document.getElementById('cmpHeader').classList.toggle('visible', compareMode);
+  updateCmpBadges();
+}
+
+function exitCompareMode(){
+  compareMode=false; cmpSlots=[]; cmpDataCache={};
+  document.getElementById('btnCompare').classList.remove('active-cmp');
+  document.getElementById('cmpHeader').classList.remove('visible');
+  document.getElementById('mainView').style.display='';
+  document.getElementById('cmpView').style.display='none';
+  renderSimTabs();
+}
+
+async function toggleCmpSlot(sheetName){
+  const idx=cmpSlots.indexOf(sheetName);
+  if(idx>=0){
+    cmpSlots.splice(idx,1);
+    delete cmpDataCache[sheetName];
+  } else {
+    if(cmpSlots.length>=3){ alert('Max 3 simulations in compare mode.'); return; }
+    cmpSlots.push(sheetName);
+    // Pre-fetch data for this sim
+    try{
+      const payload = await loadSheetTab(sheetName);
+      if(payload&&payload.ok){
+        const raw = parsePayloadToRaw(payload);
+        const tickers = [...new Set(raw.map(r=>r.t).filter(Boolean))];
+        await fetchFundamentalsForTickers(tickers).catch(()=>{});
+        cmpDataCache[sheetName] = raw.map(r=>{
+          const f=window._fundCache[r.t];
+          if(!f) return r;
+          return {...r, sector:r.sector||f.sector, mcap:r.mcap||f.mcap, beta:r.beta!=null?r.beta:f.beta};
+        });
+      }
+    } catch(e){ console.warn('Compare fetch failed for '+sheetName, e); }
+  }
+  renderSimTabs();
+  updateCmpBadges();
+  if(cmpSlots.length>=2) renderCompareModeUI();
+  else{
+    document.getElementById('cmpView').style.display='none';
+    document.getElementById('mainView').style.display='';
+  }
+}
+
+function updateCmpBadges(){
+  const el=document.getElementById('cmpBadges');
+  if(!el) return;
+  if(cmpSlots.length===0){
+    el.innerHTML='<span style="font-size:10px;color:var(--dim);font-family:var(--fs)">Click simulation tabs to select (up to 3)</span>';
+    return;
+  }
+  el.innerHTML=cmpSlots.map((sn,i)=>{
+    const sim=simulations.find(s=>s.sheetName===sn);
+    return `<span class="cmp-badge ${CMP_BADGE_CLASSES[i]}">${LBL(i)} ${sim?sim.name:sn}</span>`;
+  }).join('');
+}
+function LBL(i){ return ['①','②','③'][i]||i+1; }
+
+function getSimRowsFromCache(sheetName){
+  const raw = cmpDataCache[sheetName] || [];
+  return buildRows(raw.map(r=>({...r})));
+}
+
+function renderCompareModeUI(){
+  if(cmpSlots.length<2) return;
+  document.getElementById('mainView').style.display='none';
+  document.getElementById('cmpView').style.display='';
+  const n=cmpSlots.length;
+  const gridClass=n===2?'cmp-grid-2':'cmp-grid-3';
+
+  const simsData=cmpSlots.map((sn,i)=>{
+    const sim=simulations.find(s=>s.sheetName===sn)||{name:sn};
+    const rows=getSimRowsFromCache(sn);
+    return {sim,rows,i,sheetName:sn};
+  });
+
+  let html=``;
+
+  // ─── STATS COMPARISON ───
+  html+=`<div class="cmp-section-title">📊 Portfolio Summary</div>`;
+  html+=`<div class="${gridClass}" style="margin-bottom:14px">`;
+  simsData.forEach(({sim,rows,i})=>{
+    const totalVal=rows.reduce((s,r)=>s+r.pv,0);
+    const totalPt=rows.reduce((s,r)=>s+(r.pt||0),0);
+    const annRows=rows.filter(r=>r.ann);
+    const avgAnn=annRows.length?annRows.reduce((s,r)=>s+r.ann,0)/annRows.length:0;
+    const wAvgDte = calcWeightedAvgDte(rows);
+    const upCnt=rows.filter(r=>r.ytd>0).length;
+    const color=CMP_COLORS[i];
+    html+=`<div>
+      <div class="cmp-col-label cmp-col-${['a','b','c'][i]}">${LBL(i)} ${sim.name}</div>
+      <div class="panel cmp-panel">
+        <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${cmpStat('Portfolio Value','$'+(totalVal/1000).toFixed(1)+'k',color)}
+          ${cmpStat('Premium','$'+Math.round(totalPt).toLocaleString(),color)}
+          ${cmpStat('Avg Ann Return',(avgAnn*100).toFixed(1)+'%',color)}
+          ${cmpStat('Wt Avg DTE',wAvgDte!==null?wAvgDte.toFixed(1)+'d':'—',color)}
+          ${cmpStat('Positions',rows.length,color)}
+          ${cmpStat('YTD Winners',upCnt+'/'+rows.length,color)}
+        </div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // ─── ANN RETURN CHART ───
+  html+=`<div class="cmp-section-title">📈 Ann Return % by Ticker</div>`;
+  html+=`<div class="${gridClass}" style="margin-bottom:14px">`;
+  simsData.forEach(({sim,rows,i})=>{
+    const canvasId=`cCmpBar_${i}`;
+    html+=`<div>
+      <div class="cmp-col-label cmp-col-${['a','b','c'][i]}">${LBL(i)} ${sim.name}</div>
+      <div class="panel cmp-panel">
+        <div style="padding:4px 12px 12px"><canvas id="${canvasId}"></canvas></div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // ─── YTD CHART ───
+  html+=`<div class="cmp-section-title">📅 YTD Performance</div>`;
+  html+=`<div class="${gridClass}" style="margin-bottom:14px">`;
+  simsData.forEach(({sim,rows,i})=>{
+    const canvasId=`cCmpYTD_${i}`;
+    html+=`<div>
+      <div class="cmp-col-label cmp-col-${['a','b','c'][i]}">${LBL(i)} ${sim.name}</div>
+      <div class="panel cmp-panel">
+        <div style="padding:4px 12px 12px"><canvas id="${canvasId}"></canvas></div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // ─── PREMIUM BY EXPIRY ───
+  html+=`<div class="cmp-section-title">💰 Premium by Expiry</div>`;
+  html+=`<div class="${gridClass}" style="margin-bottom:14px">`;
+  simsData.forEach(({sim,rows,i})=>{
+    const canvasId=`cCmpPie_${i}`;
+    html+=`<div>
+      <div class="cmp-col-label cmp-col-${['a','b','c'][i]}">${LBL(i)} ${sim.name}</div>
+      <div class="panel cmp-panel">
+        <div style="padding:4px 12px 12px"><canvas id="${canvasId}"></canvas></div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // ─── POSITION TABLE PER SIM ───
+  html+=`<div class="cmp-section-title">📋 Positions Detail</div>`;
+  html+=`<div class="${gridClass}" style="margin-bottom:20px">`;
+  simsData.forEach(({sim,rows,i})=>{
+    html+=`<div>
+      <div class="cmp-col-label cmp-col-${['a','b','c'][i]}">${LBL(i)} ${sim.name}</div>
+      <div class="panel cmp-panel">
+        <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              ${['Ticker','Expiry','Strike','Ann%','OTM%','P(OTM)','Premium','DTE'].map(h=>`<th style="padding:7px 8px;font-size:8px;font-family:var(--fs);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border2);background:var(--panel2);text-align:right;white-space:nowrap">${h}</th>`).join('')}
+            </tr></thead>
+            <tbody>
+              ${rows.sort((a,b)=>(b.ann||0)-(a.ann||0)).map(r=>`<tr style="border-bottom:1px solid rgba(38,61,94,.4)">
+                <td style="padding:6px 8px;font-size:10px;font-family:var(--fs);font-weight:700;color:var(--text);text-align:left">${r.t}</td>
+                <td style="padding:6px 8px;font-size:10px;color:var(--muted);text-align:right">${r.exp||'—'}</td>
+                <td style="padding:6px 8px;font-size:10px;color:var(--muted);text-align:right">${r.str!=null?'$'+r.str.toFixed(2):'—'}</td>
+                <td style="padding:6px 8px;font-size:10px;font-weight:700;color:${r.ann>0.5?'var(--green)':r.ann>0.25?'var(--lime)':r.ann>0.1?'var(--yellow)':'var(--orange)'};text-align:right">${r.ann!=null?(r.ann*100).toFixed(1)+'%':'—'}</td>
+                <td style="padding:6px 8px;font-size:10px;color:${r.otm>0.2?'var(--green)':r.otm>0.1?'var(--yellow)':'var(--red)'};text-align:right">${r.otm!=null?(r.otm*100).toFixed(1)+'%':'—'}</td>
+                <td style="padding:6px 8px;font-size:10px;color:var(--muted);text-align:right">${r.pt!=null?'$'+Math.round(r.pt).toLocaleString():'—'}</td>
+                <td style="padding:6px 8px;font-size:10px;font-weight:600;text-align:right" class="potm-cell">${potmCell(r.potm)}</td>
+                <td style="padding:6px 8px;font-size:10px;color:var(--dim);text-align:right">${r.dte??'—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  document.getElementById('cmpView').innerHTML=html;
+
+  // Draw comparison charts
+  requestAnimationFrame(()=>{
+    simsData.forEach(({rows,i})=>{
+      drawCmpBar(`cCmpBar_${i}`, rows);
+      drawCmpYTD(`cCmpYTD_${i}`, rows);
+      drawCmpPie(`cCmpPie_${i}`, rows);
+    });
+  });
+}
+
+function cmpStat(label, val, color){
+  return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--border2);border-radius:6px;padding:10px 12px">
+    <div style="font-size:8px;font-family:var(--fs);font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:5px">${label}</div>
+    <div style="font-family:var(--fs);font-size:18px;font-weight:800;color:${color};letter-spacing:-.5px">${val}</div>
+  </div>`;
+}
+
+// Weighted average DTE: weighted by premium total (value locked in expiry)
+function calcWeightedAvgDte(rows){
+  let totalWeight=0, weightedSum=0;
+  rows.forEach(r=>{
+    const w=r.pt||0;
+    if(r.dte!=null && w>0){ weightedSum+=r.dte*w; totalWeight+=w; }
+  });
+  return totalWeight>0 ? weightedSum/totalWeight : null;
+}
+
+// ─── COMPARE BAR ───
+function drawCmpBar(canvasId, rows){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const container=canvas.parentElement;
+  const W=Math.max(280,container.clientWidth-24),H=180;
+  const dpr=window.devicePixelRatio||1;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const c=C();
+  const all=[...rows].filter(r=>r.ann).sort((a,b)=>b.ann-a.ann);
+  if(!all.length){
+    ctx.fillStyle=c.dim;ctx.font='600 11px var(--fs)';ctx.textAlign='center';
+    ctx.fillText('No data',W/2,H/2);return;
+  }
+  const dataMaxAnn=Math.max(...all.map(r=>r.ann));
+  const maxAnn=niceMax_(dataMaxAnn, 0.05);
+  const PAD={t:8,r:8,b:34,l:42};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  niceTicks_(0, maxAnn, 4).forEach(val=>{
+    const y=PAD.t+cH-(val/maxAnn)*cH;
+    ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=c.dim;ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='right';
+    ctx.fillText(Math.round(val*100)+'%',PAD.l-3,y+3);
+  });
+  const gap=cW/all.length,bW=Math.max(3,gap*.66);
+  all.forEach((r,i)=>{
+    const x=PAD.l+i*gap+(gap-bW)/2;
+    const bH=(r.ann/maxAnn)*cH;
+    const y=PAD.t+cH-bH;
+    // Color by P(OTM): green=safe, yellow=moderate, red=at risk
+    const clr=r.potm!=null
+      ? (r.potm>=0.8?c.green:r.potm>=0.6?c.lime:r.potm>=0.4?c.yellow:c.orange)
+      : (r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange);
+    ctx.fillStyle=clr;ctx.fillRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH));
+    ctx.save();ctx.translate(Math.round(x+bW/2),PAD.t+cH+4);ctx.rotate(-Math.PI/2.5);
+    ctx.fillStyle=c.muted;ctx.font='400 7px IBM Plex Mono,monospace';ctx.textAlign='right';
+    ctx.fillText(r.t,0,0);ctx.restore();
+  });
+}
+
+// ─── COMPARE YTD ───
+function drawCmpYTD(canvasId, rows){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const container=canvas.parentElement;
+  const W=Math.max(280,container.clientWidth-24),H=180;
+  const dpr=window.devicePixelRatio||1;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const c=C();
+  if(!rows.length){ctx.fillStyle=c.dim;ctx.font='600 11px var(--fs)';ctx.textAlign='center';ctx.fillText('No data',W/2,H/2);return;}
+  const all=[...rows].sort((a,b)=>b.ytd-a.ytd);
+  const absMaxCmp=Math.max(...all.map(r=>Math.abs(r.ytd||0)));
+  const maxAbs=niceSymMax_(absMaxCmp, 5);
+  const PAD={t:8,r:8,b:34,l:44};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  const zero=PAD.t+cH/2;
+  ctx.strokeStyle=c.border;ctx.lineWidth=.8;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(PAD.l,zero);ctx.lineTo(PAD.l+cW,zero);ctx.stroke();ctx.setLineDash([]);
+  niceTicks_(0, maxAbs, 3).filter(v=>v>0).forEach(v=>{
+    [-v,v].forEach(sv=>{
+      const y=zero-(sv/maxAbs)*(cH/2);
+      ctx.strokeStyle=c.border;ctx.lineWidth=.3;ctx.setLineDash([2,4]);
+      ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=c.dim;ctx.font='500 6.5px Outfit,sans-serif';ctx.textAlign='right';
+      ctx.fillText((sv>0?'+':'')+Math.round(sv)+'%',PAD.l-3,y+3);
+    });
+  });
+  const gap=cW/all.length,bW=Math.max(3,gap*.66);
+  all.forEach((r,i)=>{
+    const x=PAD.l+i*gap+(gap-bW)/2;
+    const bH=(Math.abs(r.ytd||0)/maxAbs)*(cH/2);
+    const y=(r.ytd||0)>=0?zero-bH:zero;
+    const clr=(r.ytd||0)>=0?c.green:c.red;
+    ctx.fillStyle=clr;ctx.fillRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH));
+    ctx.save();ctx.translate(Math.round(x+bW/2),PAD.t+cH+4);ctx.rotate(-Math.PI/2.5);
+    ctx.fillStyle=c.muted;ctx.font='400 7px IBM Plex Mono,monospace';ctx.textAlign='right';
+    ctx.fillText(r.t,0,0);ctx.restore();
+  });
+}
+
+// ─── COMPARE PIE ───
+function drawCmpPie(canvasId, rows){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const container=canvas.parentElement;
+  const W=Math.max(280,container.clientWidth-24),H=180;
+  const dpr=window.devicePixelRatio||1;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const c=C();
+  const byExp={};
+  rows.forEach(r=>{ const k=r.exp||'Unknown'; byExp[k]=(byExp[k]||0)+(r.pt||0); });
+  const entries=Object.entries(byExp).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((s,[,v])=>s+v,0);
+  if(!total){ctx.fillStyle=c.dim;ctx.font='600 11px var(--fs)';ctx.textAlign='center';ctx.fillText('No premium data',W/2,H/2);return;}
+  const colors=[c.blue,c.violet,c.cyan,c.orange,c.pink];
+  const cx=W*0.38,cy=H/2,R=Math.min(W*.28,H*.44);
+  let startAngle=-Math.PI/2;
+  entries.slice(0,5).forEach(([exp,val],i)=>{
+    const sweep=(val/total)*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,startAngle,startAngle+sweep);
+    ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();
+    ctx.strokeStyle=c.bg;ctx.lineWidth=2;ctx.stroke();
+    const mid=startAngle+sweep/2;
+    const lx=cx+Math.cos(mid)*R*.62,ly=cy+Math.sin(mid)*R*.62;
+    ctx.fillStyle='#000b';ctx.font='bold 8px IBM Plex Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(Math.round(val/total*100)+'%',lx,ly+3);
+    startAngle+=sweep;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,R*.4,0,Math.PI*2);ctx.fillStyle=c.panel;ctx.fill();
+  ctx.fillStyle=c.text;ctx.font='bold 11px Outfit,sans-serif';ctx.textAlign='center';
+  ctx.fillText('$'+Math.round(total).toLocaleString(),cx,cy+4);
+  ctx.fillStyle=c.muted;ctx.font='500 8px IBM Plex Mono,monospace';ctx.fillText('total',cx,cy+15);
+  const lx0=W*.7,ly0=H/2-30;
+  entries.slice(0,5).forEach(([exp,val],i)=>{
+    const y=ly0+i*28;
+    ctx.fillStyle=colors[i%colors.length];ctx.fillRect(lx0,y,8,8);
+    ctx.fillStyle=c.text;ctx.font='600 8px Outfit,sans-serif';ctx.textAlign='left';
+    ctx.fillText(fmtChipDate(exp),lx0+12,y+7);
+    ctx.fillStyle=c.muted;ctx.font='400 7px IBM Plex Mono,monospace';
+    ctx.fillText('$'+Math.round(val).toLocaleString(),lx0+12,y+17);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIMULATION MODAL ACTIONS — all backed by Google Sheets
+// ═══════════════════════════════════════════════════════════════
+
+// ── NEW SIM ──────────────────────────────────────────────────
+function openNewSimModal(){
+  document.getElementById('newSimModal').classList.add('open');
+  const inp=document.getElementById('nsm-name');
+  inp.value='Simulation '+(simulations.length);
+  document.getElementById('nsm-mode').value='master';
+  setTimeout(()=>{inp.focus();inp.select();},60);
+}
+function closeNewSimModal(){
+  document.getElementById('newSimModal').classList.remove('open');
+}
+async function submitNewSim(){
+  const simName = (document.getElementById('nsm-name').value||'').trim()||('Simulation '+simulations.length);
+  const mode    = document.getElementById('nsm-mode').value; // 'master' or 'blank'
+  const btn     = document.getElementById('nsmSubmit');
+  btn.disabled  = true; btn.textContent='Creating…';
+  try{
+    const res = await postToSheet({ action:'createSimSheet', simName, mode });
+    saveSimDisplayName(res.sheetName, simName);
+    await syncSimList();
+    closeNewSimModal();
+    renderSimTabs();
+    await switchSim(res.sheetName);
+    // If blank mode, nothing else needed. If master, sheet already has Master data.
+    btn.textContent='＋ Create';
+  }catch(e){
+    btn.textContent='Error'; btn.classList.add('err');
+    setTimeout(()=>{ btn.textContent='＋ Create'; btn.classList.remove('err'); btn.disabled=false; },2000);
+    console.error(e);
+  }
+  btn.disabled=false;
+}
+
+// ── DUPLICATE SIM ─────────────────────────────────────────────
+function openDuplicateModal(){
+  const sim = getActiveSim();
+  if(!sim) return;
+  document.getElementById('dupSimModal').classList.add('open');
+  const inp = document.getElementById('dup-name');
+  inp.value = sim.name + ' (Copy)';
+  setTimeout(()=>{inp.focus();inp.select();},60);
+}
+function closeDuplicateModal(){
+  document.getElementById('dupSimModal').classList.remove('open');
+}
+async function submitDuplicate(){
+  const newSimName      = (document.getElementById('dup-name').value||'').trim();
+  const sourceSheetName = activeSheetName;
+  if(!newSimName) return;
+  const btn = document.getElementById('dupSubmit');
+  btn.disabled=true; btn.textContent='Duplicating…';
+  try{
+    const res = await postToSheet({ action:'duplicateSimSheet', sourceSheetName, newSimName });
+    saveSimDisplayName(res.sheetName, newSimName);
+    await syncSimList();
+    closeDuplicateModal();
+    renderSimTabs();
+    await switchSim(res.sheetName);
+  }catch(e){
+    btn.textContent='Error'; console.error(e);
+    setTimeout(()=>{ btn.textContent='Duplicate'; btn.disabled=false; },2000);
+    return;
+  }
+  btn.disabled=false;
+}
+
+// ── RENAME SIM ────────────────────────────────────────────────
+function openRenameModal(){
+  const sim=getActiveSim(); if(!sim) return;
+  document.getElementById('renameSimModal').classList.add('open');
+  const inp=document.getElementById('rnm-name');
+  // Pre-fill with the display name (already stripped of number prefix by syncSimList)
+  inp.value=sim.name;
+  setTimeout(()=>{inp.focus();inp.select();},60);
+}
+function closeRenameModal(){
+  document.getElementById('renameSimModal').classList.remove('open');
+}
+async function submitRename(){
+  const newSimName   = (document.getElementById('rnm-name').value||'').trim();
+  const oldSheetName = activeSheetName;
+  if(!newSimName) return;
+  // Master can be renamed display-only (don't rename the actual sheet)
+  if(oldSheetName===MASTER_SHEET){
+    saveSimDisplayName(MASTER_SHEET, newSimName);
+    closeRenameModal(); renderSimTabs(); return;
+  }
+  try{
+    const res = await postToSheet({ action:'renameSimSheet', oldSheetName, newSimName });
+    // Remove old meta entry, add new
+    const meta = loadMeta();
+    delete meta[oldSheetName];
+    meta[res.newSheetName] = newSimName;
+    saveMeta(meta);
+    activeSheetName = res.newSheetName;
+    await syncSimList();
+    closeRenameModal(); renderSimTabs();
+  }catch(e){ console.error(e); alert('Rename failed: '+e.message); }
+}
+
+// ── DELETE SIM ────────────────────────────────────────────────
+function openDeleteSimModal(){
+  const sim=getActiveSim();
+  if(!sim){ alert('No simulation selected.'); return; }
+  if(sim.sheetName===MASTER_SHEET){ alert('Cannot delete the Master sheet.'); return; }
+  document.getElementById('delSimName').textContent=sim.name;
+  document.getElementById('deleteSimModal').classList.add('open');
+}
+function closeDeleteSimModal(){
+  document.getElementById('deleteSimModal').classList.remove('open');
+}
+async function confirmDeleteSim(){
+  const sheetName = activeSheetName;
+  const btn = document.getElementById('delSimConfirm');
+  btn.disabled=true; btn.textContent='Deleting…';
+  try{
+    await postToSheet({ action:'deleteSimSheet', sheetName });
+    const meta=loadMeta(); delete meta[sheetName]; saveMeta(meta);
+    activeSheetName = MASTER_SHEET;
+    cmpSlots = cmpSlots.filter(s=>s!==sheetName);
+    await syncSimList();
+    closeDeleteSimModal(); renderSimTabs();
+    await switchSim(MASTER_SHEET);
+  }catch(e){
+    btn.textContent='Error'; console.error(e);
+    setTimeout(()=>{ btn.textContent='Delete Simulation'; btn.disabled=false; },2000);
+  }
+}
+
+// ── SAVE (refresh sim sheet via Alpaca) ───────────────────────
+async function saveCurrentSnapshot(){
+  const btn=document.getElementById('btnSaveSim');
+  btn.classList.add('saving'); btn.textContent='Refreshing…';
+  try{
+    if(activeSheetName===MASTER_SHEET){
+      // For Master, just reload live data
+      await loadFromSheet();
+    } else {
+      // For sim sheets, trigger server-side Alpaca refresh then reload
+      await postToSheet({ action:'refreshSimSheet', sheetName:activeSheetName });
+      await switchSim(activeSheetName);
+    }
+  }catch(e){ console.error(e); }
+  btn.textContent='⬇ Save'; btn.classList.remove('saving');
+}
+
+async function refreshCurrentSim(){
+  await saveCurrentSnapshot();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════════════
+let RAW = [];
+let ROWS = [];
+let TODAY = new Date();
+
+function toNum(v){
+  if(v==null) return null;
+  const s = String(v).trim(); if(!s) return null;
+  const x = Number(s.replace(/[$,%\s]/g,''));
+  return Number.isFinite(x) ? x : null;
+}
+function toBoolFromStatus(v){
+  const s = String(v||'').trim().toLowerCase();
+  if(!s) return true;
+  if(s.includes('ok')) return true;
+  if(s.includes('missing')||s.includes('no ')||s.includes('warn')||s.includes('error')) return false;
+  return true;
+}
+function normHeader(h){ return String(h||'').trim().toLowerCase().replace(/[\s\-]+/g,'').replace(/%/g,'pct'); }
+function parseISODate(v){
+  if(!v) return '';
+  const s=String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d=new Date(s);
+  if(Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0,10);
+}
+
+function buildRows(raw){
+  const today=new Date(); today.setHours(0,0,0,0); TODAY=today;
+  return raw.map(r=>{
+    const expDate=r.exp?new Date(r.exp):null;
+    const dte=expDate?Math.round((expDate-TODAY)/86400000):null;
+    const otm=(r.spot!=null&&r.spot>0&&r.str!=null)?(r.str-r.spot)/r.spot:null;
+    const pv=(r.s!=null&&r.spot!=null)?r.s*r.spot:0;
+    const upfront=(r.pt!=null&&pv)?r.pt/pv:null;
+    const ann=(r.pt!=null&&dte)?(r.pt*365/dte)/pv:null;
+    const wide=(r.bid!=null&&r.ask!=null)?((r.ask-r.bid)>0.3):false;
+    return {...r,dte,otm,pv,upfront,ann,wide};
+  });
+}
+
+// Parse a JSONP payload into RAW array
+function parsePayloadToRaw(payload){
+  if(!payload||payload.ok!==true) return [];
+  const headersRaw=(payload.headers||[]).map(h=>String(h||'').trim());
+  const headers=headersRaw.map(normHeader);
+  const objects=(payload.rows||[]).map(rowArr=>{
+    const o={};
+    headers.forEach((h,i)=>{ o[h]=(rowArr&&rowArr[i]!==undefined)?rowArr[i]:''; });
+    return o;
+  });
+  return objects.map(o=>{
+    const rowid=String(o.rowid||o.row_id||o.rowId||'').trim();
+    const t=String(o.ticker||'').trim().toUpperCase();
+    const s=toNum(o.shares);
+    const exp=parseISODate(o.expiry);
+    const str=toNum(o.strike);
+    const con=toNum(o.contracts);
+    const spot=toNum(o.spot);
+    const bid=toNum(o.bid);
+    const ask=toNum(o.ask);
+    const mid=toNum(o.mid);
+    const pt=toNum(o.premiumtotal);
+    let ytd=toNum(o.stockytdpct);
+    if(ytd!=null&&Math.abs(ytd)<=1.5) ytd=ytd*100;
+    if(ytd==null) ytd=0;
+    const ok=toBoolFromStatus(o.status);
+    const sector=String(o.sector||'').trim();
+    const mcap=String(o['market cap']||o.marketcap||o.marketCap||'').trim();
+    const beta=toNum(o.beta);
+    const potm=toNum(o['p(otm)']??o.potm??o['p otm']??null);
+    return {rowid,t,s,exp,str,con,spot,bid,ask,mid,pt,ok,ytd,sector,mcap,beta,potm};
+  }).filter(r=>r.t);
+}
+
+let expChip1=null, expChip2=null;
+function fmtChipDate(iso){
+  if(!iso) return '—';
+  const d=new Date(iso);
+  if(Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString(undefined,{month:'short'})+' '+String(d.getDate()).padStart(2,'0');
+}
+function updateExpiryChips(){
+  const uniq=[...new Set(ROWS.map(r=>r.exp).filter(Boolean))].sort();
+  expChip1=uniq[0]||null; expChip2=uniq[1]||null;
+  const b1=document.getElementById('chipExp1'),b2=document.getElementById('chipExp2');
+  if(b1){if(expChip1){b1.style.display='inline-flex';b1.textContent=fmtChipDate(expChip1);}else{b1.style.display='none';}}
+  if(b2){if(expChip2){b2.style.display='inline-flex';b2.textContent=fmtChipDate(expChip2);}else{b2.style.display='none';}}
+  if((chipFilter==='exp1'&&!expChip1)||(chipFilter==='exp2'&&!expChip2)){
+    chipFilter='all';
+    document.querySelectorAll('.chip').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.chip[data-f="all"]')?.classList.add('active');
+  }
+}
+function updateLiveMeta(note){
+  const el=document.getElementById('liveMeta'); if(!el) return;
+  const iso=new Date().toISOString().slice(0,10);
+  el.innerHTML=`${iso} &nbsp;·&nbsp; ${ROWS.length} positions${note?` &nbsp;·&nbsp; ${note}`:''}`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// FUNDAMENTALS CACHE (Sector, Market Cap, Beta)
+// Fetched once per session from Yahoo Finance via allorigins proxy
+// Cache: window._fundCache = { AAPL: {sector, mcap, beta}, ... }
+// ═══════════════════════════════════════════════════════════════
+window._fundCache = window._fundCache || {};
+window._fundPending = false;
+
+const MCAP_BUCKETS = v => {
+  if(v==null) return 'Unknown';
+  if(v >= 200e9) return 'Mega';
+  if(v >= 10e9)  return 'Large';
+  if(v >= 2e9)   return 'Mid';
+  return 'Small';
+};
+
+async function fetchFundamentalsForTickers(tickers){
+  const missing = tickers.filter(t => !window._fundCache[t]);
+  if(!missing.length) return;
+  // Fetch in batches of 8 to avoid URL length limits
+  const BATCH = 8;
+  for(let i=0; i<missing.length; i+=BATCH){
+    const chunk = missing.slice(i, i+BATCH);
+    await Promise.allSettled(chunk.map(t => fetchOneFundamental(t)));
+  }
+}
+
+async function fetchOneFundamental(ticker){
+  if(window._fundCache[ticker]) return;
+  try{
+    // Yahoo Finance quoteSummary via allorigins CORS proxy
+    const yUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=summaryDetail%2CassetProfile%2CdefaultKeyStatistics`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yUrl)}`;
+    const res  = await fetch(proxyUrl, {signal: AbortSignal.timeout(8000)});
+    if(!res.ok) throw new Error('proxy '+res.status);
+    const outer = await res.json();
+    const data  = JSON.parse(outer.contents || '{}');
+    const result = data?.quoteSummary?.result?.[0];
+    if(!result) throw new Error('no result');
+    const profile = result.assetProfile         || {};
+    const stats   = result.defaultKeyStatistics || {};
+    const detail  = result.summaryDetail        || {};
+    const beta    = detail.beta?.raw   ?? stats.beta?.raw   ?? null;
+    const mcapRaw = detail.marketCap?.raw ?? null;
+    window._fundCache[ticker] = {
+      sector: String(profile.sector || profile.industry || '').trim() || 'Unknown',
+      mcap:   MCAP_BUCKETS(mcapRaw),
+      beta:   beta != null ? Math.round(beta*100)/100 : null
+    };
+  } catch(e){
+    // Fallback: mark as attempted so we don't retry every render
+    window._fundCache[ticker] = window._fundCache[ticker] || { sector:'Unknown', mcap:'Unknown', beta:null, _failed:true };
+    console.warn('Fundamentals fetch failed for', ticker, e.message||e);
+  }
+}
+
+// Enrich RAW rows with cached fundamentals (called after fetch completes)
+function enrichRawWithFundamentals(){
+  RAW = RAW.map(r => {
+    const f = window._fundCache[r.t];
+    if(!f) return r;
+    return {
+      ...r,
+      sector: r.sector || f.sector,
+      mcap:   r.mcap   || f.mcap,
+      beta:   r.beta   != null ? r.beta : f.beta
+    };
+  });
+  ROWS = buildRows(RAW);
+  renderAll();
+}
+
+// Process a payload into the active view
+function processPayload(payload, sheetName){
+  const raw=parsePayloadToRaw(payload);
+  RAW=raw;
+  ROWS=buildRows(RAW);
+  // Also cache for compare
+  cmpDataCache[sheetName]=raw;
+  updateExpiryChips();
+  const sim=simulations.find(s=>s.sheetName===sheetName);
+  updateLiveMeta((sim?sim.name:sheetName));
+  renderAll();
+  requestAnimationFrame(()=>{
+    attachBarClick('cBar',barHitAreas,SEL.bar,'clearBar');
+    attachSliceClick('cPie',pieHitAreas,'pie','clearPie');
+    attachBarClick('cYTD',ytdHitAreas,SEL.ytd,'clearYTD');
+    attachSliceClick('cDonut',donutHitAreas,'donut','clearDonut');
+  });
+  // Fetch fundamentals async — re-render charts/cards when done
+  const tickers = [...new Set(RAW.map(r=>r.t).filter(Boolean))];
+  fetchFundamentalsForTickers(tickers).then(()=>{
+    enrichRawWithFundamentals();
+  }).catch(()=>{});
+}
+
+// Load Master sheet (JSONP, same as V1)
+async function loadFromSheet(){
+  const meta=document.getElementById('liveMeta');
+  if(meta) meta.textContent='Loading…';
+  const cbName="__pocketPnlCb_"+Date.now();
+  const timeoutMs=15000;
+  return await new Promise((resolve,reject)=>{
+    let done=false;
+    const cleanup=(scriptEl)=>{ if(scriptEl&&scriptEl.parentNode)scriptEl.parentNode.removeChild(scriptEl); try{delete window[cbName];}catch(e){window[cbName]=undefined;} };
+    const finishError=(err)=>{ if(done)return; done=true; cleanup(script); if(meta)meta.textContent='Error: '+String(err.message||err); reject(err); };
+    const timer=setTimeout(()=>finishError(new Error("JSONP timeout")),timeoutMs);
+    const handlePayload=(payload)=>{
+      if(done)return; done=true; clearTimeout(timer); cleanup(script);
+      try{
+        if(!payload||payload.ok!==true) throw new Error(payload?.error||"Bad payload");
+        processPayload(payload, activeSheetName);
+        resolve(true);
+      }catch(err){ finishError(err); }
+    };
+    window[cbName]=handlePayload; window.callback=handlePayload;
+    const sep=APPS_SCRIPT_URL.includes("?")?"&":"?";
+    const url=APPS_SCRIPT_URL+sep+"sheet="+encodeURIComponent(activeSheetName)+"&callback="+encodeURIComponent(cbName)+"&_="+Date.now();
+    const script=document.createElement("script");
+    script.src=url; script.async=true;
+    script.onerror=()=>finishError(new Error("Failed to load Apps Script"));
+    document.head.appendChild(script);
+  });
+}
+
+async function saveRowEdits(rowId, updates, btn){
+  const _URL=window.APPS_SCRIPT_URL||""; const _TOKEN=window.APPS_SCRIPT_TOKEN||"";
+  if(!rowId){ alert("RowID missing — add RowID column in your sheet and populate it."); return; }
+  try{
+    if(btn){ btn.disabled=true; btn.classList.remove('ok','err'); btn.textContent='Saving…'; }
+    const res=await fetch(_URL,{
+      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:_TOKEN, rowId, updates, sheetName:activeSheetName})
+    });
+    const json=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((json&&json.error)?json.error:('HTTP '+res.status));
+    if(json&&json.ok===false) throw new Error(json.error||'Write failed');
+    if(btn){ btn.classList.add('ok'); btn.textContent='Saved ✓'; setTimeout(()=>{ btn.textContent='Save'; btn.classList.remove('ok'); btn.disabled=false; },1200); }
+    await switchSim(activeSheetName);
+  }catch(err){
+    console.error(err);
+    if(btn){ btn.classList.add('err'); btn.textContent='Error'; setTimeout(()=>{ btn.textContent='Save'; btn.classList.remove('err'); btn.disabled=false; },1500); }
+    else{ alert(String(err.message||err)); }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SELECTION STATE
+// ═══════════════════════════════════════════════
+const SEL={bar:new Set(),ytd:new Set(),pie:null,donut:null};
+const cssc=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const C=()=>({
+  green:cssc('--green'),lime:cssc('--lime'),yellow:cssc('--yellow'),orange:cssc('--orange'),
+  red:cssc('--red'),blue:cssc('--blue'),violet:cssc('--violet'),cyan:cssc('--cyan'),
+  pink:cssc('--pink'),muted:cssc('--muted'),dim:cssc('--dim'),text:cssc('--text'),
+  panel:cssc('--panel'),panel2:cssc('--panel2'),border:cssc('--border'),bg:cssc('--bg'),
+});
+function anySelection(){ return SEL.bar.size>0||SEL.ytd.size>0||SEL.pie!==null||SEL.donut!==null; }
+function updateResetBtn(){ document.getElementById('resetBtn').className='reset-btn'+(anySelection()?' show':''); }
+function resetAll(){
+  SEL.bar.clear();SEL.ytd.clear();SEL.pie=null;SEL.donut=null;
+  document.getElementById('clearBar').className='chart-clear';
+  document.getElementById('clearPie').className='chart-clear';
+  document.getElementById('clearYTD').className='chart-clear';
+  document.getElementById('clearDonut').className='chart-clear';
+  updateResetBtn(); renderAll();
+}
+function clearBarSel(){SEL.bar.clear();document.getElementById('clearBar').className='chart-clear';updateResetBtn();renderAll();}
+function clearPieSel(){SEL.pie=null;document.getElementById('clearPie').className='chart-clear';updateResetBtn();renderAll();}
+function clearYTDSel(){SEL.ytd.clear();document.getElementById('clearYTD').className='chart-clear';updateResetBtn();renderAll();}
+function clearDonutSel(){SEL.donut=null;document.getElementById('clearDonut').className='chart-clear';updateResetBtn();renderAll();}
+
+let chipFilter='all', searchVal='';
+function getFiltered(){
+  let rows=ROWS;
+  if(chipFilter==='exp1' && expChip1) rows=rows.filter(r=>r.exp===expChip1);
+  else if(chipFilter==='exp2' && expChip2) rows=rows.filter(r=>r.exp===expChip2);
+  else if(chipFilter==='ann50')  rows=rows.filter(r=>r.ann&&r.ann>0.5);
+  else if(chipFilter==='ann25')  rows=rows.filter(r=>r.ann&&r.ann>=0.25&&r.ann<=0.5);
+  else if(chipFilter==='ann10')  rows=rows.filter(r=>!r.ann||r.ann<0.1);
+  else if(chipFilter==='otm20')  rows=rows.filter(r=>r.otm!=null&&r.otm>0.2);
+  else if(chipFilter==='otm10')  rows=rows.filter(r=>r.otm!=null&&r.otm>=0.1&&r.otm<=0.2);
+  else if(chipFilter==='warn')   rows=rows.filter(r=>!r.ok);
+  else if(chipFilter==='wide')   rows=rows.filter(r=>r.wide);
+  if(searchVal) rows=rows.filter(r=>r.t.toLowerCase().includes(searchVal.toLowerCase()));
+  if(SEL.bar.size>0)   rows=rows.filter(r=>SEL.bar.has(r.t));
+  if(SEL.ytd.size>0)   rows=rows.filter(r=>SEL.ytd.has(r.t));
+  if(SEL.pie!==null)   rows=rows.filter(r=>r.exp===SEL.pie);
+  if(SEL.donut!==null) rows=rows.filter(r=>r.t===SEL.donut||SEL.donut==='others'&&!getTOP8().includes(r.t));
+  return rows;
+}
+function getTOP8(){ return [...ROWS].sort((a,b)=>b.pv-a.pv).slice(0,8).map(r=>r.t); }
+let sortKey='ann',sortDir=-1;
+function getSorted(){ return getFiltered().sort((a,b)=>{ const av=a[sortKey],bv=b[sortKey]; if(av==null)return 1;if(bv==null)return -1; return sortDir*(av>bv?1:av<bv?-1:0); }); }
+
+// ═══════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════
+function renderStats(){
+  const rows=getFiltered();
+
+  // ── Raw computations ─────────────────────────────────────────
+  const totalVal  = rows.reduce((s,r)=>s+r.pv,0);
+  const totalPt   = rows.reduce((s,r)=>s+(r.pt||0),0);
+  const annRows   = rows.filter(r=>r.ann&&r.pv>0);
+
+  // Ann Return: simple avg AND value-weighted avg
+  const avgAnnSimple = annRows.length ? annRows.reduce((s,r)=>s+r.ann,0)/annRows.length : 0;
+  const avgAnnWt     = annRows.length ? annRows.reduce((s,r)=>s+r.ann*r.pv,0)/annRows.reduce((s,r)=>s+r.pv,0) : 0;
+
+
+  // Annualized Run-Rate: annualise actual collected premium using each position's DTE
+  const annPremPt  = Math.round(rows.filter(r=>r.dte>0&&(r.pt||0)>0).reduce((s,r)=>s+(r.pt||0)*365/r.dte,0));
+
+  // OTM%: wt by position value AND by premium
+  const otmRowsPv  = rows.filter(r=>r.otm!=null&&r.pv>0);
+  const wtOtmPv    = otmRowsPv.length ? otmRowsPv.reduce((s,r)=>s+r.otm*r.pv,0)/otmRowsPv.reduce((s,r)=>s+r.pv,0) : null;
+  const otmRowsPt  = rows.filter(r=>r.otm!=null&&(r.pt||0)>0);
+  const wtOtmPt    = otmRowsPt.length ? otmRowsPt.reduce((s,r)=>s+r.otm*(r.pt||0),0)/otmRowsPt.reduce((s,r)=>s+(r.pt||0),0) : null;
+
+  // P(OTM): wt by position value AND by premium
+  const potmRowsPv = rows.filter(r=>r.potm!=null&&r.pv>0);
+  const wtPotmPv   = potmRowsPv.length ? potmRowsPv.reduce((s,r)=>s+r.potm*r.pv,0)/potmRowsPv.reduce((s,r)=>s+r.pv,0) : null;
+  const potmRowsPt = rows.filter(r=>r.potm!=null&&(r.pt||0)>0);
+  const wtPotmPt   = potmRowsPt.length ? potmRowsPt.reduce((s,r)=>s+r.potm*(r.pt||0),0)/potmRowsPt.reduce((s,r)=>s+(r.pt||0),0) : null;
+
+  // Beta: wt by position value AND by premium
+  const betaRowsPv = rows.filter(r=>r.beta!=null&&r.pv>0);
+  const wtBetaPv   = betaRowsPv.length ? betaRowsPv.reduce((s,r)=>s+r.beta*r.pv,0)/betaRowsPv.reduce((s,r)=>s+r.pv,0) : null;
+  const betaRowsPt = rows.filter(r=>r.beta!=null&&(r.pt||0)>0);
+  const wtBetaPt   = betaRowsPt.length ? betaRowsPt.reduce((s,r)=>s+r.beta*(r.pt||0),0)/betaRowsPt.reduce((s,r)=>s+(r.pt||0),0) : null;
+
+  // DTE: wt by position value AND by premium
+  const dteRowsPv = rows.filter(r=>r.dte!=null&&r.pv>0);
+  const wtDtePv   = dteRowsPv.length ? dteRowsPv.reduce((s,r)=>s+r.dte*r.pv,0)/dteRowsPv.reduce((s,r)=>s+r.pv,0) : null;
+  const dteRowsPt = rows.filter(r=>r.dte!=null&&(r.pt||0)>0);
+  const wtDtePt   = dteRowsPt.length ? dteRowsPt.reduce((s,r)=>s+r.dte*(r.pt||0),0)/dteRowsPt.reduce((s,r)=>s+(r.pt||0),0) : null;
+
+  // Stash all values for toggle re-render (no recompute needed)
+  window._sv = {
+    totalVal, totalPt, annPremPt,
+    avgAnnSimple, avgAnnWt,
+    wtOtmPv, wtOtmPt,
+    wtBetaPv, wtBetaPt,
+    wtDtePv, wtDtePt,
+    wtPotmPv, wtPotmPt,
+    posCount: rows.length
+  };
+
+  renderAllCards();
+}
+
+// Toggle modes — persist across filter changes
+window._tm = window._tm || { annProj:'arr', otm:'pv', potm:'pv', beta:'pv', dte:'pt' };
+
+function renderAllCards(){
+  const v = window._sv || {};
+  const m = window._tm;
+
+  // ── Row 1: static cards + toggled Avg Ann Return ────────────
+  const annVal     = m.ann==='simple' ? (v.avgAnnSimple||0) : (v.avgAnnWt||0);
+
+  const staticCards = [
+    { label:'Portfolio Value',  val:'$'+(v.totalVal/1000).toFixed(1)+'k', sub:v.posCount+' positions', a:'--blue',   id:null },
+    { label:'Expected Premium', val:'$'+(v.totalPt||0).toLocaleString(),   sub:'upfront',               a:'--green',  id:null },
+  ];
+
+  const toggleCards = [
+    { id:'annProj', label:'Ann Return', a:'--violet',
+      vals:{
+        arr:  '$'+(v.annPremPt||0).toLocaleString(),
+        pct:  ((v.avgAnnWt||0)*100).toFixed(1)+'%'
+      },
+      subs:{
+        arr:  'annualized run-rate',
+        pct:  'wt by position value'
+      },
+      mode: m.annProj, opts:[{k:'arr',l:'Run-Rate $'},{k:'pct',l:'Ann Return %'}] },
+    { id:'otm',     label:'Wt Avg OTM%',   a:'--yellow',
+      vals:{ pv: v.wtOtmPv!=null?((v.wtOtmPv||0)*100).toFixed(1)+'%':'—',
+             pt: v.wtOtmPt!=null?((v.wtOtmPt||0)*100).toFixed(1)+'%':'—' },
+      subs:{ pv:'wt by position value', pt:'wt by premium' },
+      mode: m.otm,    opts:[{k:'pv',l:'Pos Value'},{k:'pt',l:'Premium'}] },
+    { id:'potm',    label:'P(Expire OTM)',  a:'--green',
+      vals:{ pv: v.wtPotmPv!=null?((v.wtPotmPv||0)*100).toFixed(1)+'%':'—',
+             pt: v.wtPotmPt!=null?((v.wtPotmPt||0)*100).toFixed(1)+'%':'—' },
+      subs:{ pv:'wt by position value', pt:'wt by premium' },
+      mode: m.potm,   opts:[{k:'pv',l:'Pos Value'},{k:'pt',l:'Premium'}] },
+    { id:'beta',    label:'Wt Avg Beta',   a:'--orange',
+      vals:{ pv: v.wtBetaPv!=null?(v.wtBetaPv||0).toFixed(2):'—',
+             pt: v.wtBetaPt!=null?(v.wtBetaPt||0).toFixed(2):'—' },
+      subs:{ pv:'wt by position value', pt:'wt by premium' },
+      mode: m.beta,   opts:[{k:'pv',l:'Pos Value'},{k:'pt',l:'Premium'}] },
+
+    { id:'dte',     label:'Avg DTE',        a:'--yellow',
+      vals:{ pv: v.wtDtePv!=null?Math.round(v.wtDtePv)+' d':'—',
+             pt: v.wtDtePt!=null?Math.round(v.wtDtePt)+' d':'—' },
+      subs:{ pv:'wt by position value', pt:'wt by premium' },
+      mode: m.dte,    opts:[{k:'pv',l:'Pos Value'},{k:'pt',l:'Premium'}] },
+  ];
+
+  // Render static cards
+  const statsEl = document.getElementById('stats');
+  statsEl.innerHTML = [
+    ...staticCards.map(c=>`
+      <div class="sc" style="--a:var(${c.a})">
+        <div class="sc-label">${c.label}</div>
+        <div class="sc-val">${c.val}</div>
+        <div class="sc-sub">${c.sub}</div>
+      </div>`),
+    ...toggleCards.map(c=>c._static ? `
+      <div class="sc" style="--a:var(${c.a})">
+        <div class="sc-label">${c.label}</div>
+        <div class="sc-val">${c.val}</div>
+        <div class="sc-sub">${c.sub}</div>
+      </div>` : `
+      <div class="sc" style="--a:var(${c.a})">
+        <div class="sc-label">${c.label}</div>
+        <div class="sc-val">${c.vals[c.mode]}</div>
+        <div class="sc-sub">${c.subs[c.mode]}</div>
+        <div class="sc-toggle">
+          ${c.opts.map(o=>`<button class="sc-toggle-btn${c.mode===o.k?' active':''}" onclick="setCardMode('${c.id}','${o.k}');event.stopPropagation()">${o.l}</button>`).join('')}
+        </div>
+      </div>`)
+  ].join('');
+
+  // Remove old extra row (DTE is gone)
+  const eRow = document.getElementById('statsExtra');
+  if(eRow) eRow.remove();
+}
+
+function setCardMode(card, mode){
+  window._tm[card] = mode;
+  renderAllCards();
+}
+
+// ═══════════════════════════════════════════════
+// CANVAS HELPER
+// ═══════════════════════════════════════════════
+function setupCanvas(id,w,h){
+  const canvas=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  return{ctx,w,h,dpr};
+}
+
+
+// ═══════════════════════════════════════════════
+// CHART SCALE HELPERS — data-driven, no wasted space
+// ═══════════════════════════════════════════════
+// Round a max value up to the nearest "nice" step
+function niceMax_(val, minStep) {
+  if(!val || val<=0) return minStep*4;
+  const step = Math.max(minStep, Math.pow(10, Math.floor(Math.log10(val))-1)*5);
+  return Math.ceil(val/step)*step;
+}
+// Generate 3-5 evenly spaced nice tick values from min to max
+function niceTicks_(min, max, count) {
+  const range = max - min;
+  if(range<=0) return [max];
+  const raw = range / (count-1);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = Math.ceil(raw/mag)*mag;
+  const ticks = [];
+  let v = Math.ceil(min/step)*step;
+  while(v <= max+step*0.01) { ticks.push(Math.round(v*10000)/10000); v+=step; }
+  return ticks.length ? ticks : [min, max];
+}
+// Nice symmetric max for bipolar charts (YTD)
+function niceSymMax_(absMax, minStep) {
+  if(!absMax) return minStep*2;
+  return niceMax_(absMax, minStep);
+}
+
+// ═══════════════════════════════════════════════
+// BAR CHART
+// ═══════════════════════════════════════════════
+const barHitAreas=[];
+function drawBar(){
+  const container=document.getElementById('cBar').parentElement;
+  const W=Math.max(320,container.clientWidth-24),H=200;
+  const{ctx}=setupCanvas('cBar',W,H);
+  const c=C(); barHitAreas.length=0;
+  const all=[...ROWS].filter(r=>r.ann).sort((a,b)=>b.ann-a.ann);
+  if(!all.length){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No ann return data',W/2,H/2);return; }
+  const dataMax=Math.max(...all.map(r=>r.ann));
+  const maxAnn=niceMax_(dataMax, 0.05);
+  const PAD={t:8,r:8,b:36,l:42}; const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  niceTicks_(0, maxAnn, 5).forEach(val=>{
+    const y=PAD.t+cH-(val/maxAnn)*cH;
+    ctx.strokeStyle=c.border;ctx.lineWidth=.5;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=c.dim;ctx.font='600 8px Outfit,sans-serif';ctx.textAlign='right';
+    ctx.fillText(Math.round(val*100)+'%',PAD.l-4,y+3);
+  });
+  const gap=cW/all.length; const bW=Math.max(3,gap*0.68);
+  all.forEach((r,i)=>{
+    const x=PAD.l+i*gap+(gap-bW)/2; const bH=(r.ann/maxAnn)*cH; const y=PAD.t+cH-bH;
+    const sel=SEL.bar.has(r.t); const dim=SEL.bar.size>0&&!sel;
+    const clr=r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange;
+    ctx.globalAlpha=dim?0.22:1; ctx.fillStyle=clr;
+    ctx.fillRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH));
+    if(sel){ ctx.strokeStyle=clr+'88';ctx.lineWidth=1;ctx.strokeRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH)); }
+    ctx.globalAlpha=1;
+    ctx.save(); ctx.globalAlpha=dim?0.3:1;
+    ctx.translate(Math.round(x+bW/2),PAD.t+cH+5); ctx.rotate(-Math.PI/2.5);
+    ctx.fillStyle=sel?c.text:c.muted; ctx.font=(sel?'600':'400')+' 7.5px IBM Plex Mono,monospace';
+    ctx.textAlign='right'; ctx.fillText(r.t,0,0); ctx.restore();
+    barHitAreas.push({x,y:PAD.t,w:bW,h:cH+PAD.b,ticker:r.t});
+  });
+}
+
+// ═══════════════════════════════════════════════
+// PIE CHART
+// ═══════════════════════════════════════════════
+const pieHitAreas=[];
+function drawPie(){
+  const container=document.getElementById('cPie').parentElement;
+  const W=Math.max(320,container.clientWidth-24),H=200;
+  const{ctx}=setupCanvas('cPie',W,H); const c=C(); pieHitAreas.length=0;
+  const byExp = {};
+  ROWS.forEach(r=>{ const k=r.exp||'Unknown'; byExp[k]=(byExp[k]||0)+(r.pt||0); });
+  const entries = Object.entries(byExp).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const top = entries.slice(0,4); const other = entries.slice(4).reduce((s,[_k,v])=>s+v,0);
+  const total = top.reduce((s,[_k,v])=>s+v,0) + other;
+  const cx=W*0.4,cy=H/2,R=Math.min(W*0.28,H*0.44);
+  const colors=[c.blue,c.violet,c.cyan,c.orange,c.pink];
+  const slices=[
+    ...top.map(([exp,val],i)=>({label:fmtChipDate(exp),value:val,exp:exp,color:colors[i%colors.length]})),
+    ...(other>0?[{label:'Other',value:other,exp:'others',color:c.dim}]:[])
+  ];
+  if(!total){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No premium data',W/2,H/2);return; }
+  let startAngle=-Math.PI/2;
+  slices.forEach(s=>{
+    const sweep=(s.value/total)*Math.PI*2; const sel=SEL.pie===s.exp; const dim=SEL.pie!==null&&!sel;
+    const midAngle=startAngle+sweep/2;
+    ctx.globalAlpha=dim?0.25:1; ctx.beginPath(); ctx.moveTo(cx,cy);
+    const ox=sel?Math.cos(midAngle)*6:0,oy=sel?Math.sin(midAngle)*6:0;
+    ctx.arc(cx+ox,cy+oy,R+(sel?4:0),startAngle,startAngle+sweep); ctx.closePath();
+    ctx.fillStyle=s.color; ctx.fill(); ctx.strokeStyle=c.bg;ctx.lineWidth=2.5;ctx.stroke(); ctx.globalAlpha=1;
+    const lx=cx+Math.cos(midAngle)*R*0.65,ly=cy+Math.sin(midAngle)*R*0.65;
+    ctx.fillStyle='#000a';ctx.font='bold 9px IBM Plex Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(Math.round(s.value/total*100)+'%',lx+ox,ly+oy+3);
+    pieHitAreas.push({exp:s.exp,cx:cx+ox,cy:cy+oy,R,startAngle,endAngle:startAngle+sweep});
+    startAngle+=sweep;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,R*0.42,0,Math.PI*2);ctx.fillStyle=c.panel;ctx.fill();
+  ctx.fillStyle=c.text;ctx.font='bold 13px Outfit,sans-serif';ctx.textAlign='center';
+  ctx.fillText('$'+Math.round(total).toLocaleString(),cx,cy+5);
+  ctx.fillStyle=c.muted;ctx.font='500 8px IBM Plex Mono,monospace';ctx.fillText('total prem',cx,cy+17);
+  const lx0=W*0.74,ly0=H/2-22;
+  slices.forEach((s,i)=>{ const y=ly0+i*32; const dim=SEL.pie!==null&&SEL.pie!==s.exp; ctx.globalAlpha=dim?0.3:1;
+    ctx.fillStyle=s.color;ctx.fillRect(lx0,y,10,10);
+    ctx.fillStyle=c.text;ctx.font='700 10px Outfit,sans-serif';ctx.textAlign='left';ctx.fillText(s.label,lx0+14,y+9);
+    ctx.fillStyle=c.muted;ctx.font='400 9px IBM Plex Mono,monospace';ctx.fillText('$'+Math.round(s.value).toLocaleString(),lx0+14,y+20);ctx.globalAlpha=1; });
+}
+
+// ═══════════════════════════════════════════════
+// YTD CHART
+// ═══════════════════════════════════════════════
+const ytdHitAreas=[];
+function drawYTD(){
+  const container=document.getElementById('cYTD').parentElement;
+  const W=Math.max(320,container.clientWidth-24),H=200;
+  const{ctx}=setupCanvas('cYTD',W,H); const c=C(); ytdHitAreas.length=0;
+  if(!ROWS.length){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No YTD data',W/2,H/2);return; }
+  const all=[...ROWS].sort((a,b)=>b.ytd-a.ytd);
+  const absMax=Math.max(...all.map(r=>Math.abs(r.ytd||0)));
+  const maxAbs=niceSymMax_(absMax, 5); // round up to nearest 5%
+  const PAD={t:8,r:8,b:36,l:44}; const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b; const zero=PAD.t+cH/2;
+  ctx.strokeStyle=c.border;ctx.lineWidth=1;ctx.setLineDash([4,5]);
+  ctx.beginPath();ctx.moveTo(PAD.l,zero);ctx.lineTo(PAD.l+cW,zero);ctx.stroke();ctx.setLineDash([]);
+  // Smart ticks: only positive side, mirror to negative
+  niceTicks_(0, maxAbs, 4).filter(v=>v>0).forEach(v=>{
+    [-v, v].forEach(sv=>{
+      const y=zero-(sv/maxAbs)*(cH/2);
+      ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,5]);
+      ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=c.dim;ctx.font='600 7.5px Outfit,sans-serif';ctx.textAlign='right';
+      ctx.fillText((sv>0?'+':'')+Math.round(sv)+'%',PAD.l-3,y+3);
+    });
+  });
+  const gap=cW/all.length,bW=Math.max(3,gap*0.68);
+  all.forEach((r,i)=>{
+    const x=PAD.l+i*gap+(gap-bW)/2; const bH=(Math.abs(r.ytd||0)/maxAbs)*(cH/2);
+    const y=(r.ytd||0)>=0?zero-bH:zero; const sel=SEL.ytd.has(r.t); const dim=SEL.ytd.size>0&&!sel;
+    const clr=(r.ytd||0)>=0?c.green:c.red;
+    ctx.globalAlpha=dim?0.22:1; ctx.fillStyle=clr; ctx.fillRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH));
+    if(sel){ctx.strokeStyle=clr;ctx.lineWidth=1.5;ctx.strokeRect(Math.round(x),Math.round(y),Math.round(bW),Math.round(bH));}
+    ctx.globalAlpha=1;
+    ctx.save(); ctx.globalAlpha=dim?0.3:1;
+    ctx.translate(Math.round(x+bW/2),PAD.t+cH+5); ctx.rotate(-Math.PI/2.5);
+    ctx.fillStyle=sel?c.text:c.muted; ctx.font=(sel?'600':'400')+' 7.5px IBM Plex Mono,monospace';
+    ctx.textAlign='right'; ctx.fillText(r.t,0,0); ctx.restore();
+    ytdHitAreas.push({x,y:PAD.t,w:bW,h:cH+PAD.b,ticker:r.t});
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SCATTER
+// ═══════════════════════════════════════════════
+function drawOTM(){
+  const container=document.getElementById('cOTM').parentElement;
+  const W=Math.max(320,container.clientWidth-24),H=188;
+  const{ctx}=setupCanvas('cOTM',W,H); const c=C();
+  const rows=ROWS.filter(r=>r.ann&&r.otm!=null);
+  if(!rows.length){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No OTM/Ann data',W/2,H/2);return; }
+  const PAD={t:12,r:24,b:34,l:46}; const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  // Data-driven axes with smart rounding — no wasted space
+  const maxOTM=niceMax_(Math.max(...rows.map(r=>r.otm)), 0.02);
+  const maxAnn=niceMax_(Math.max(...rows.map(r=>r.ann)), 0.05);
+  // X axis ticks (OTM%)
+  niceTicks_(0, maxOTM, 4).forEach(val=>{
+    const x=PAD.l+(val/maxOTM)*cW;
+    ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,5]);
+    ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,PAD.t+cH);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=c.dim;ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='center';
+    ctx.fillText(Math.round(val*100)+'%',x,PAD.t+cH+12);
+  });
+  // Y axis ticks (Ann%)
+  niceTicks_(0, maxAnn, 4).forEach(val=>{
+    const y=PAD.t+cH-(val/maxAnn)*cH;
+    ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,5]);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=c.dim;ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='right';
+    ctx.fillText(Math.round(val*100)+'%',PAD.l-4,y+3);
+  });
+  // Axis labels
+  ctx.fillStyle=c.muted;ctx.font='600 7.5px Outfit,sans-serif';ctx.textAlign='center';
+  ctx.fillText('OTM % →',PAD.l+cW/2,H-2);
+  ctx.save();ctx.translate(10,PAD.t+cH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('Ann % ↑',0,0);ctx.restore();
+  // P(OTM) color legend (top-right)
+  const hasAnyPotm = rows.some(r=>r.potm!=null);
+  if(hasAnyPotm){
+    const legend=[{clr:c.green,l:'≥80%'},{clr:c.lime,l:'60%'},{clr:c.yellow,l:'40%'},{clr:c.orange,l:'<40%'}];
+    let lx=PAD.l+cW-2, ly=PAD.t+4;
+    ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
+    ctx.fillStyle=c.dim; ctx.fillText('P(OTM)',lx,ly); ly+=9;
+    legend.forEach(({clr,l})=>{
+      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx-3,ly-3,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=c.dim; ctx.fillText(l,lx-8,ly); ly+=9;
+    });
+  }
+  // First pass: compute dot positions and sizes
+  const dots = rows.map(r=>{
+    const x=PAD.l+(r.otm/maxOTM)*cW;
+    const y=PAD.t+cH-(r.ann/maxAnn)*cH;
+    const clr=r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange;
+    const rad=Math.max(4,Math.min(10,(r.pt||30)/30));
+    return {x:Math.round(x),y:Math.round(y),clr,rad,t:r.t};
+  });
+
+  // Draw dots first
+  dots.forEach(d=>{
+    ctx.beginPath();ctx.arc(d.x,d.y,d.rad,0,Math.PI*2);
+    ctx.fillStyle=d.clr;ctx.fill();
+    ctx.strokeStyle=d.clr+'44';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // Second pass: smart label placement with collision avoidance
+  ctx.font='600 7px IBM Plex Mono,monospace';
+  const labelH=8, labelPad=2;
+  const placed=[]; // [{x1,y1,x2,y2}] bounding boxes of placed labels
+
+  // Try 8 candidate positions around each dot, pick first that doesn't collide
+  const offsets=[
+    {dx:0,   dy:-1, ax:'center', ay:'bottom'}, // above (preferred)
+    {dx:1,   dy:-1, ax:'left',   ay:'bottom'}, // above-right
+    {dx:-1,  dy:-1, ax:'right',  ay:'bottom'}, // above-left
+    {dx:1,   dy:0,  ax:'left',   ay:'middle'}, // right
+    {dx:-1,  dy:0,  ax:'right',  ay:'middle'}, // left
+    {dx:0,   dy:1,  ax:'center', ay:'top'},    // below
+    {dx:1,   dy:1,  ax:'left',   ay:'top'},    // below-right
+    {dx:-1,  dy:1,  ax:'right',  ay:'top'},    // below-left
+  ];
+
+  function overlaps(bx1,by1,bx2,by2){
+    return placed.some(p=>!(bx2<p.x1||bx1>p.x2||by2<p.y1||by1>p.y2));
+  }
+  function clampInChart(bx1,bx2,by1,by2){
+    return bx1>=PAD.l && bx2<=PAD.l+cW && by1>=PAD.t && by2<=PAD.t+cH+16;
+  }
+
+  dots.forEach(d=>{
+    const tw=ctx.measureText(d.t).width;
+    const dist=d.rad+labelPad+2;
+    for(const o of offsets){
+      let lx,ly;
+      if(o.dx===0)       lx=d.x;
+      else if(o.dx===1)  lx=d.x+dist;
+      else               lx=d.x-dist;
+
+      if(o.dy===-1) ly=d.y-dist;
+      else if(o.dy===0) ly=d.y+3;
+      else              ly=d.y+dist+labelH;
+
+      // Bounding box of label
+      let bx1,bx2;
+      if(o.ax==='center'){ bx1=lx-tw/2; bx2=lx+tw/2; }
+      else if(o.ax==='left'){ bx1=lx; bx2=lx+tw; }
+      else { bx1=lx-tw; bx2=lx; }
+      const by1=ly-labelH, by2=ly+2;
+
+      if(!overlaps(bx1-1,by1-1,bx2+1,by2+1) && clampInChart(bx1,bx2,by1,by2)){
+        // Draw subtle leader line if label is far from dot
+        const cx2=o.ax==='center'?lx:o.ax==='left'?bx1:bx2;
+        const lineDist=Math.hypot(cx2-d.x,(ly-4)-d.y);
+        if(lineDist>d.rad+8){
+          ctx.strokeStyle=d.clr+'55';ctx.lineWidth=.6;ctx.setLineDash([2,3]);
+          ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(cx2,(ly-4));ctx.stroke();ctx.setLineDash([]);
+        }
+        // Draw label
+        ctx.fillStyle=c.text;ctx.textAlign=o.ax==='middle'?'center':o.ax;
+        ctx.fillText(d.t, lx, ly);
+        placed.push({x1:bx1-1,y1:by1-1,x2:bx2+1,y2:by2+1});
+        return;
+      }
+    }
+    // All positions collide — draw label directly on dot in contrasting color (last resort)
+    ctx.fillStyle='#000';ctx.textAlign='center';
+    ctx.fillText(d.t,d.x,d.y+3);
+    placed.push({x1:d.x-tw/2,y1:d.y-4,x2:d.x+tw/2,y2:d.y+6});
+  });
+}
+
+// ═══════════════════════════════════════════════
+// DONUT
+// ═══════════════════════════════════════════════
+const donutHitAreas=[];
+function drawDonut(){
+  const container=document.getElementById('cDonut').parentElement;
+  const W=Math.max(320,container.clientWidth-24),H=188;
+  const{ctx}=setupCanvas('cDonut',W,H); const c=C(); donutHitAreas.length=0;
+  const sorted=[...ROWS].sort((a,b)=>b.pv-a.pv); const top8=sorted.slice(0,8);
+  const othersPV=sorted.slice(8).reduce((s,r)=>s+r.pv,0);
+  const total=ROWS.reduce((s,r)=>s+r.pv,0);
+  const colors=[c.blue,c.green,c.violet,c.yellow,c.cyan,c.orange,c.pink,c.lime];
+  const slices=[...top8.map((r,i)=>({label:r.t,value:r.pv,color:colors[i],key:r.t})),{label:'Others',value:othersPV,color:c.dim,key:'others'}];
+  const cx=W*0.36,cy=H/2,R=Math.min(W*0.26,H*0.44);
+  if(!total){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No value data',W/2,H/2);return; }
+  let startAngle=-Math.PI/2;
+  slices.forEach(s=>{
+    const sweep=(s.value/total)*Math.PI*2; const sel=SEL.donut===s.key; const dim=SEL.donut!==null&&!sel;
+    const mid=startAngle+sweep/2; const ox=sel?Math.cos(mid)*5:0,oy=sel?Math.sin(mid)*5:0;
+    ctx.globalAlpha=dim?0.22:1; ctx.beginPath();ctx.moveTo(cx+ox,cy+oy);
+    ctx.arc(cx+ox,cy+oy,R+(sel?4:0),startAngle,startAngle+sweep); ctx.closePath();
+    ctx.fillStyle=s.color;ctx.fill(); ctx.strokeStyle=c.bg;ctx.lineWidth=2;ctx.stroke(); ctx.globalAlpha=1;
+    donutHitAreas.push({key:s.key,cx:cx+ox,cy:cy+oy,R,startAngle,endAngle:startAngle+sweep}); startAngle+=sweep;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,R*.46,0,Math.PI*2);ctx.fillStyle=c.panel;ctx.fill();
+  ctx.fillStyle=c.text;ctx.font='bold 12px Outfit,sans-serif';ctx.textAlign='center';
+  ctx.fillText('$'+(total/1000).toFixed(1)+'k',cx,cy+4);
+  ctx.fillStyle=c.muted;ctx.font='500 8px IBM Plex Mono,monospace';ctx.fillText('total value',cx,cy+15);
+  const lx0=W*0.66,lx1=W*0.83,ly0=8;
+  slices.forEach((s,i)=>{ const col=i<5?lx0:lx1,row=i<5?i:i-5,y=ly0+row*22; const dim=SEL.donut!==null&&SEL.donut!==s.key;
+    ctx.globalAlpha=dim?0.3:1; ctx.fillStyle=s.color;ctx.fillRect(Math.round(col),Math.round(y),9,9);
+    ctx.fillStyle=i===slices.length-1?c.muted:c.text; ctx.font='600 8px Outfit,sans-serif';ctx.textAlign='left';
+    ctx.fillText(s.label,col+13,y+8); ctx.fillStyle=c.muted;ctx.font='400 7px IBM Plex Mono,monospace';
+    ctx.fillText('$'+(s.value/1000).toFixed(1)+'k',col+13,y+17); ctx.globalAlpha=1; });
+}
+
+// ═══════════════════════════════════════════════
+// HIT TESTING
+// ═══════════════════════════════════════════════
+function ptInSlice(px,py,cx,cy,R,a0,a1){
+  const dx=px-cx,dy=py-cy,dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist>R)return false;
+  let a=Math.atan2(dy,dx); while(a<a0)a+=Math.PI*2; return a<=a1;
+}
+function attachBarClick(id,hitAreas,selSet,clearId){
+  const canvas=document.getElementById(id); canvas.style.cursor='pointer';
+  canvas.onclick=e=>{
+    const rect=canvas.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const scaleX=canvas.width/dpr/rect.width,scaleY=canvas.height/dpr/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+    let hit=null; hitAreas.forEach(h=>{if(mx>=h.x&&mx<=h.x+h.w&&my>=h.y&&my<=h.y+h.h)hit=h;});
+    if(!hit)return;
+    if(selSet.has(hit.ticker))selSet.delete(hit.ticker); else selSet.add(hit.ticker);
+    document.getElementById(clearId).className='chart-clear'+(selSet.size>0?' vis':'');
+    updateResetBtn();renderAll();
+  };
+}
+function attachSliceClick(id,hitAreas,selProp,clearId){
+  const canvas=document.getElementById(id); canvas.style.cursor='pointer';
+  canvas.onclick=e=>{
+    const rect=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1;
+    const scaleX=canvas.width/dpr/rect.width,scaleY=canvas.height/dpr/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX,my=(e.clientY-rect.top)*scaleY;
+    let hit=null; hitAreas.forEach(h=>{if(ptInSlice(mx,my,h.cx,h.cy,h.R,h.startAngle,h.endAngle))hit=h;});
+    const key=hit?hit.exp||hit.key:null;
+    SEL[selProp]=(SEL[selProp]===key)?null:key;
+    document.getElementById(clearId).className='chart-clear'+(SEL[selProp]!==null?' vis':'');
+    updateResetBtn();renderAll();
+  };
+}
+
+// ═══════════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════════
+const COLS=[
+  {k:'t',lbl:'Ticker',al:'left'},{k:'s',lbl:'Shares',al:'right'},
+  {k:'exp',lbl:'Expiry',al:'center'},{k:'dte',lbl:'DTE',al:'center'},
+  {k:'str',lbl:'Strike',al:'right'},{k:'spot',lbl:'Spot',al:'right'},
+  {k:'ytd',lbl:'YTD %',al:'right'},{k:'otm',lbl:'OTM %',al:'right'},
+  {k:'pv',lbl:'Value',al:'right'},{k:'bid',lbl:'Bid',al:'right'},
+  {k:'ask',lbl:'Ask',al:'right'},{k:'mid',lbl:'Mid',al:'right'},
+  {k:'pt',lbl:'Premium',al:'right'},{k:'upfront',lbl:'Upfront%',al:'right'},
+  {k:'ann',lbl:'Ann %',al:'right'},{k:'ok',lbl:'Status',al:'center'},
+  {k:'save',lbl:'',al:'center'},{k:'del',lbl:'',al:'center'},
+];
+const f$=v=>v==null?'—':'$'+Number(v).toFixed(2);
+const fK=v=>v==null?'—':'$'+(Number(v)/1000).toFixed(1)+'k';
+const fP=v=>v==null?'—':(Number(v)*100).toFixed(1)+'%';
+const fY=v=>(v>=0?'+':'')+Number(v).toFixed(1)+'%';
+
+function cellTxt(k,r){
+  if(k==='t')     return r.t;
+  if(k==='s')     return r.s ?? '';
+  if(k==='exp')   return r.exp ? r.exp : '';
+  if(k==='dte')   return r.dte ?? '—';
+  if(k==='str')   return r.str ?? '';
+  if(k==='spot')  return f$(r.spot);
+  if(k==='ytd')   return fY(r.ytd||0);
+  if(k==='otm')   return r.otm!=null?fP(r.otm):'—';
+  if(k==='pv')    return fK(r.pv);
+  if(k==='bid')   return f$(r.bid);
+  if(k==='ask')   return f$(r.ask);
+  if(k==='mid')   return f$(r.mid);
+  if(k==='pt')    return r.pt!=null?'$'+Math.round(r.pt).toLocaleString():'—';
+  if(k==='upfront')return r.upfront!=null?fP(r.upfront):'—';
+  if(k==='ann')   return r.ann!=null?fP(r.ann):'—';
+  if(k==='ok')    return r.ok?'✓':'⚠';
+  return '';
+}
+function cellClr(k,r){
+  const c=C();
+  if(k==='t')return c.text;
+  if(k==='ytd')return (r.ytd||0)>=0?c.green:c.red;
+  if(k==='ann'){ if(!r.ann)return c.dim; return r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange; }
+  if(k==='otm'){ if(r.otm==null)return c.dim; return r.otm>0.20?c.green:r.otm>0.10?c.yellow:c.red; }
+  if(k==='ok')return r.ok?c.green:c.yellow;
+  if(k==='ask'&&r.wide)return c.orange;
+  return c.muted;
+}
+
+
+function potmCell(v){
+  if(v==null) return '<span style="color:var(--dim)">—</span>';
+  const pct = (v*100).toFixed(0)+'%';
+  const clr = v>=0.8?'var(--green)':v>=0.6?'var(--lime)':v>=0.4?'var(--yellow)':'var(--red)';
+  return '<span style="color:'+clr+'">'+pct+'</span>';
+}
+function renderTable(){
+  const rows=getSorted();
+  document.getElementById('tblBadge').textContent=rows.length+' rows';
+  document.getElementById('thead').innerHTML=COLS.map(c=>
+    `<th class="${c.k===sortKey?'sorted':''}" data-k="${c.k}" style="text-align:${c.al}">
+      ${c.lbl}${c.k===sortKey?`<span class="arr">${sortDir>0?'↑':'↓'}</span>`:''}
+    </th>`
+  ).join('');
+  document.querySelectorAll('thead th[data-k]').forEach(th=>{
+    const k=th.dataset.k; if(k==='save') return;
+    th.onclick=()=>{ if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=-1;} renderTable(); };
+  });
+  document.getElementById('tbody').innerHTML=rows.map(r=>{
+    const rowid=r.rowid||'';
+    return `<tr data-rowid="${rowid}">
+      ${COLS.map(c=>{
+        const wide=c.k==='ask'&&r.wide;
+        if(['t','s','exp','str'].includes(c.k)){
+          const val=(c.k==='t')?r.t:(c.k==='s')?(r.s??''):(c.k==='exp')?(r.exp??''):(r.str??'');
+          const type=(c.k==='s'||c.k==='str')?'number':'text';
+          const step=(c.k==='str')?'0.5':(c.k==='s'?'1':'any');
+          const placeholder=(c.k==='exp')?'YYYY-MM-DD':'';
+          return `<td style="text-align:${c.al}"><input class="cell-inp" data-k="${c.k}" ${type==='number'?`type="number" step="${step}"`:`type="text"`} value="${String(val??'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"></td>`;
+        }
+        if(c.k==='save') return `<td style="text-align:${c.al}"><button class="save-btn" ${!rowid?'disabled':''}>Save</button></td>`;
+        if(c.k==='del')  return `<td style="text-align:${c.al}"><button class="del-btn" ${!rowid?'disabled':''}>✕</button></td>`;
+        return `<td style="text-align:${c.al};color:${cellClr(c.k,r)};${c.k==='t'?'font-family:var(--fs);font-weight:700;font-size:13px':''}${c.k==='ann'||c.k==='ytd'?';font-weight:600':''}">
+          ${wide?`<span title="Wide spread">⚠ ${cellTxt(c.k,r)}</span>`:cellTxt(c.k,r)}
+        </td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    const rowId=tr.getAttribute('data-rowid')||'';
+    const btn=tr.querySelector('.save-btn'); const delBtn=tr.querySelector('.del-btn');
+    if(btn){ btn.onclick=async()=>{
+      if(!rowId)return;
+      const t=(tr.querySelector('input[data-k="t"]')?.value||'').trim().toUpperCase();
+      const s=tr.querySelector('input[data-k="s"]')?.value;
+      const exp=(tr.querySelector('input[data-k="exp"]')?.value||'').trim();
+      const str=tr.querySelector('input[data-k="str"]')?.value;
+      const updates={"Ticker":t,"Shares":s===''?'':Number(s),"Expiry":exp,"Strike":str===''?'':Number(str)};
+      await saveRowEdits(rowId,updates,btn);
+    };}
+    if(delBtn){ delBtn.onclick=()=>{ if(!rowId)return; const ticker=(tr.querySelector('input[data-k="t"]')?.value||rowId); openDelModal(rowId,ticker); }; }
+  });
+
+  const tV=rows.reduce((s,r)=>s+r.pv,0);
+  const tP=rows.reduce((s,r)=>s+(r.pt||0),0);
+  const aR=rows.filter(r=>r.ann); const avg=aR.length?aR.reduce((s,r)=>s+r.ann,0)/aR.length:null;
+  document.getElementById('tfoot').innerHTML=COLS.map(c=>{
+    let v='';
+    if(c.k==='t')  v=rows.length+' pos';
+    if(c.k==='pv') v='$'+(tV/1000).toFixed(1)+'k';
+    if(c.k==='pt') v='$'+Math.round(tP).toLocaleString();
+    if(c.k==='ann')v=avg!=null?fP(avg):'—';
+    return`<td style="text-align:${c.al}">${v}</td>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// ADD ROW MODAL
+// ═══════════════════════════════════════════════
+function openAddModal(){
+  document.getElementById('addRowModal').classList.add('open');
+  ['mf-ticker','mf-shares','mf-expiry','mf-strike','mf-contracts'].forEach(id=>{document.getElementById(id).value='';});
+  const btn=document.getElementById('addRowSubmit');
+  btn.textContent='＋ Add Row'; btn.disabled=false; btn.classList.remove('err');
+  setTimeout(()=>document.getElementById('mf-ticker').focus(),60);
+}
+function closeAddModal(){ document.getElementById('addRowModal').classList.remove('open'); }
+document.getElementById('addRowModal').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeAddModal(); });
+
+async function submitAddRow(){
+  const ticker=(document.getElementById('mf-ticker').value||'').trim().toUpperCase();
+  if(!ticker){document.getElementById('mf-ticker').focus();return;}
+  const shares=document.getElementById('mf-shares').value;
+  const expiry=(document.getElementById('mf-expiry').value||'').trim();
+  const strike=document.getElementById('mf-strike').value;
+  const contracts=document.getElementById('mf-contracts').value;
+  const _URL=window.APPS_SCRIPT_URL||''; const _TOKEN=window.APPS_SCRIPT_TOKEN||'';
+  const btn=document.getElementById('addRowSubmit');
+  btn.disabled=true; btn.classList.remove('err'); btn.textContent='Adding…';
+  try{
+    const res=await fetch(_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:_TOKEN,action:'addRow',sheetName:activeSheetName,newRow:{
+        Ticker:ticker,Shares:shares===''?'':Number(shares),Expiry:expiry,
+        Strike:strike===''?'':Number(strike),Contracts:contracts===''?'':Number(contracts)
+      }})});
+    const json=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((json&&json.error)?json.error:('HTTP '+res.status));
+    if(json&&json.ok===false) throw new Error(json.error||'Add row failed');
+    btn.textContent='Added ✓';
+    setTimeout(async()=>{closeAddModal();await switchSim(activeSheetName);},700);
+  }catch(err){
+    console.error(err); btn.classList.add('err'); btn.textContent='Error'; btn.disabled=false;
+    setTimeout(()=>{btn.textContent='＋ Add Row';btn.classList.remove('err');},2000);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DELETE ROW MODAL
+// ═══════════════════════════════════════════════
+let _pendingDelRowId=null;
+function openDelModal(rowId,ticker){ _pendingDelRowId=rowId; document.getElementById('delModalTicker').textContent=ticker; document.getElementById('delModal').classList.add('open'); const btn=document.getElementById('delModalConfirm'); btn.textContent='Delete'; btn.disabled=false; }
+function closeDelModal(){ _pendingDelRowId=null; document.getElementById('delModal').classList.remove('open'); }
+document.getElementById('delModal').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeDelModal(); });
+
+async function confirmDelete(){
+  const rowId=_pendingDelRowId; if(!rowId)return;
+  const _URL=window.APPS_SCRIPT_URL||''; const _TOKEN=window.APPS_SCRIPT_TOKEN||'';
+  const btn=document.getElementById('delModalConfirm'); btn.disabled=true; btn.textContent='Deleting…';
+  try{
+    const res=await fetch(_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:_TOKEN,action:'deleteRow',rowId,sheetName:activeSheetName})});
+    const json=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((json&&json.error)?json.error:('HTTP '+res.status));
+    if(json&&json.ok===false) throw new Error(json.error||'Delete failed');
+    closeDelModal(); await switchSim(activeSheetName);
+  }catch(err){ console.error(err); btn.textContent='Error'; setTimeout(()=>{btn.textContent='Delete';btn.disabled=false;},2000); }
+}
+
+// ═══════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// SECTOR DONUT CHART
+// ═══════════════════════════════════════════════
+
+// Hide entire extra charts row if both panels have no data
+function updateExtraChartsRow(){
+  const row = document.getElementById('extraChartsRow');
+  if(!row) return;
+  const sHidden = document.getElementById('sectorChartPanel')?.style.display === 'none';
+  const mHidden = document.getElementById('mcapChartPanel')?.style.display  === 'none';
+  row.style.display = (sHidden && mHidden) ? 'none' : '';
+  // If one is hidden, make the other full width
+  if(sHidden && !mHidden) row.style.gridTemplateColumns = '1fr';
+  else if(mHidden && !sHidden) row.style.gridTemplateColumns = '1fr';
+  else row.style.gridTemplateColumns = '';
+}
+
+function drawSector(){
+  const rows=getFiltered().filter(r=>r.sector&&r.sector!=='Unknown'&&r.pv>0);
+  const panel=document.getElementById('sectorChartPanel');
+  if(!rows.length){ if(panel) panel.style.display='none'; updateExtraChartsRow(); return; }
+  if(panel) panel.style.display='';
+  updateExtraChartsRow();
+  const W=Math.max(280,(document.getElementById('cSector')?.parentElement?.clientWidth||280)-24);
+  const H=180;
+  const{ctx}=setupCanvas('cSector',W,H);
+  const c=C();
+
+  // Aggregate by sector (by position value)
+  const map=new Map();
+  rows.forEach(r=>{const s=r.sector||'Unknown';map.set(s,(map.get(s)||0)+r.pv);});
+  const sorted=[...map.entries()].sort((a,b)=>b[1]-a[1]);
+  const total=sorted.reduce((s,[,v])=>s+v,0);
+
+  // Color palette
+  const palette=['#2db8e8','#22d47a','#9a5fe0','#d97820','#e8c832','#ff5faa','#9fd430','#1acab5','#e03a3a','#4a90d9'];
+  const cx=W*0.36,cy=H/2,R=Math.min(cx,cy)*0.82,r=R*0.55;
+  let angle=-Math.PI/2;
+
+  sorted.forEach(([label,val],i)=>{
+    const sweep=(val/total)*Math.PI*2;
+    const clr=palette[i%palette.length];
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,angle,angle+sweep);
+    ctx.closePath();ctx.fillStyle=clr;ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle='var(--panel)';ctx.fill();
+    angle+=sweep;
+  });
+
+  // Legend on the right
+  const lx=W*0.72+4, ly=H/2-(sorted.length*13)/2;
+  sorted.forEach(([label,val],i)=>{
+    const clr=palette[i%palette.length];
+    const pct=((val/total)*100).toFixed(1);
+    const y=ly+i*15;
+    ctx.fillStyle=clr;ctx.fillRect(lx,y-7,8,8);
+    ctx.fillStyle=c.text;ctx.font='500 8px Outfit,sans-serif';ctx.textAlign='left';
+    ctx.fillText(label.slice(0,16)+(label.length>16?'…':''),lx+11,y);
+    ctx.fillStyle=c.dim;ctx.font='500 7.5px IBM Plex Mono,monospace';
+    ctx.fillText(pct+'%',lx+11,y+9);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// MARKET CAP DONUT CHART
+// ═══════════════════════════════════════════════
+function drawMcap(){
+  const rows=getFiltered().filter(r=>r.mcap&&r.mcap!=='Unknown'&&r.pv>0);
+  const panel=document.getElementById('mcapChartPanel');
+  if(!rows.length){ if(panel) panel.style.display='none'; updateExtraChartsRow(); return; }
+  if(panel) panel.style.display='';
+  updateExtraChartsRow();
+  const W=Math.max(280,(document.getElementById('cMcap')?.parentElement?.clientWidth||280)-24);
+  const H=180;
+  const{ctx}=setupCanvas('cMcap',W,H);
+  const c=C();
+
+  // Bucket order + colors
+  const ORDER=['Mega','Large','Mid','Small','Unknown'];
+  const COLORS={'Mega':'#2db8e8','Large':'#22d47a','Mid':'#e8c832','Small':'#d97820','Unknown':'#4a6585'};
+  const map=new Map();
+  rows.forEach(r=>{
+    const b=ORDER.includes(r.mcap)?r.mcap:'Unknown';
+    map.set(b,(map.get(b)||0)+r.pv);
+  });
+  const sorted=ORDER.filter(b=>map.has(b)).map(b=>[b,map.get(b)]);
+  const total=sorted.reduce((s,[,v])=>s+v,0);
+
+  const cx=W*0.36,cy=H/2,R=Math.min(cx,cy)*0.82,ri=R*0.55;
+  let angle=-Math.PI/2;
+  sorted.forEach(([label,val])=>{
+    const sweep=(val/total)*Math.PI*2;
+    const clr=COLORS[label]||'#888';
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,angle,angle+sweep);
+    ctx.closePath();ctx.fillStyle=clr;ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);
+    ctx.fillStyle='var(--panel)';ctx.fill();
+    angle+=sweep;
+  });
+
+  // Ranges legend
+  const RANGES={'Mega':'>$200B','Large':'$10B–$200B','Mid':'$2B–$10B','Small':'<$2B','Unknown':'—'};
+  const lx=W*0.72+4, ly=H/2-(sorted.length*16)/2;
+  sorted.forEach(([label,val],i)=>{
+    const clr=COLORS[label]||'#888';
+    const pct=((val/total)*100).toFixed(1);
+    const y=ly+i*17;
+    ctx.fillStyle=clr;ctx.fillRect(lx,y-8,8,8);
+    ctx.fillStyle=c.text;ctx.font='600 8.5px Outfit,sans-serif';ctx.textAlign='left';
+    ctx.fillText(label,lx+11,y);
+    ctx.fillStyle=c.dim;ctx.font='500 7px Outfit,sans-serif';
+    ctx.fillText(RANGES[label]||'',lx+11,y+8);
+    ctx.fillStyle=c.muted;ctx.font='500 7.5px IBM Plex Mono,monospace';
+    ctx.textAlign='right';ctx.fillText(pct+'%',W-8,y);
+  });
+}
+
+function renderAll(){
+  renderStats(); drawBar();drawPie();drawYTD();drawOTM();drawDonut();drawSector();drawMcap(); renderTable();
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.chip').forEach(btn=>{
+  btn.onclick=()=>{
+    chipFilter=btn.dataset.f;
+    document.querySelectorAll('.chip').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); renderAll();
+  };
+});
+document.getElementById('srch').oninput=e=>{searchVal=e.target.value;renderAll();};
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeAddModal(); closeDelModal(); closeNewSimModal(); closeRenameModal(); closeDeleteSimModal(); closeDuplicateModal(); }
+});
+
+// ─── INIT ─────────────────────────────────────────
+(async function init(){
+  // Sync sim list from backend
+  await syncSimList();
+  renderSimTabs();
+
+  // Load active sheet
+  try{
+    await loadFromSheet();
+  } catch(e){
+    console.warn('Initial load failed:', e);
+  }
+})();
+
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{ renderAll(); if(compareMode&&cmpSlots.length>=2) renderCompareModeUI(); },120);});
+</script>
+</body>
+</html>
