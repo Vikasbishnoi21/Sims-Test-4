@@ -2015,7 +2015,7 @@ function drawOTM(){
     return r.ann>0.4?c.green:r.ann>0.2?c.lime:r.ann>0.08?c.yellow:c.orange;
   }
 
-  // Legend — frosted box, bottom-left
+  // Legend — frosted box, top-right
   const legItems = hasDelta
     ? [{clr:c.green,l:'Safe  δ < 0.25'},{clr:c.lime,l:'Moderate  δ < 0.45'},{clr:c.yellow,l:'Watch  δ < 0.65'},{clr:c.orange,l:'At risk  δ ≥ 0.65'}]
     : [{clr:c.green,l:'Ann > 40%'},{clr:c.lime,l:'Ann > 20%'},{clr:c.yellow,l:'Ann > 8%'},{clr:c.orange,l:'Ann ≤ 8%'}];
@@ -2024,7 +2024,7 @@ function drawOTM(){
   const itemH=11, titleH=14, padX=8, padY=6;
   const boxW=Math.max(...legItems.map(({l})=>ctx.measureText(l).width))+padX*2+10;
   const boxH=titleH+legItems.length*itemH+padY;
-  const bx=PAD.l+4, by=PAD.t+cH-boxH-2;
+  const bx=PAD.l+cW-boxW+PAD.r-4, by=PAD.t+2;
   // Box background
   ctx.fillStyle='rgba(10,20,40,0.62)';
   ctx.beginPath();
@@ -2252,11 +2252,19 @@ function renderTable(){
       ${COLS.map(c=>{
         const wide=c.k==='ask'&&r.wide;
         if(['t','s','exp','str'].includes(c.k)){
-          const val=(c.k==='t')?r.t:(c.k==='s')?(r.s??''):(c.k==='exp')?(r.exp??''):(r.str??'');
+          const rawVal=(c.k==='t')?r.t:(c.k==='s')?(r.s??''):(c.k==='exp')?(r.exp??''):(r.str??'');
           const type=(c.k==='s'||c.k==='str')?'number':'text';
           const step=(c.k==='str')?'0.5':(c.k==='s'?'1':'any');
           const placeholder=(c.k==='exp')?'YYYY-MM-DD':'';
-          return `<td style="text-align:${c.al}"><input class="cell-inp" data-k="${c.k}" ${type==='number'?`type="number" step="${step}"`:`type="text"`} value="${String(val??'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"></td>`;
+          // For expiry: show formatted Mon DD but store raw YYYY-MM-DD in data-raw
+          if(c.k==='exp'){
+            const d=rawVal?new Date(rawVal+'T00:00:00'):null;
+            const dispVal=(d&&!isNaN(d))?(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getDate()):rawVal;
+            return `<td style="text-align:${c.al}"><input class="cell-inp" data-k="exp" data-raw="${String(rawVal).replace(/"/g,'&quot;')}" type="text" value="${String(dispVal??'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"
+              onfocus="if(this.dataset.raw)this.value=this.dataset.raw"
+              onblur="const r=this.value.trim();const d=r?new Date(r+'T00:00:00'):null;if(d&&!isNaN(d)){this.dataset.raw=r;const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];this.value=m+' '+d.getDate();}else{this.value=this.dataset.raw||r;}"></td>`;
+          }
+          return `<td style="text-align:${c.al}"><input class="cell-inp" data-k="${c.k}" ${type==='number'?`type="number" step="${step}"`:`type="text"`} value="${String(rawVal??'').replace(/"/g,'&quot;')}" placeholder="${placeholder}"></td>`;
         }
         if(c.k==='save') return `<td style="text-align:${c.al}"><button class="save-btn" ${!rowid?'disabled':''}>Save</button></td>`;
         if(c.k==='del')  return `<td style="text-align:${c.al}"><button class="del-btn" ${!rowid?'disabled':''}>✕</button></td>`;
@@ -2274,7 +2282,7 @@ function renderTable(){
       if(!rowId)return;
       const t=(tr.querySelector('input[data-k="t"]')?.value||'').trim().toUpperCase();
       const s=tr.querySelector('input[data-k="s"]')?.value;
-      const exp=(tr.querySelector('input[data-k="exp"]')?.value||'').trim();
+      const expInp=tr.querySelector('input[data-k="exp"]'); const exp=(expInp?.dataset?.raw||expInp?.value||'').trim();
       const str=tr.querySelector('input[data-k="str"]')?.value;
       const updates={"Ticker":t,"Shares":s===''?'':Number(s),"Expiry":exp,"Strike":str===''?'':Number(str)};
       await saveRowEdits(rowId,updates,btn);
