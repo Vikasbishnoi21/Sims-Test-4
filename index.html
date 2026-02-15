@@ -690,7 +690,7 @@ button,input{ -webkit-tap-highlight-color: transparent; }
 // ═══════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
-window.APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLk9ZwKaflS7gla7LmGC-K7_n0EkGQzRzfZh_eVB2KGMm-x8vuAdacJX85C-pAVqS/exec";
+window.APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby05cBZ44nVj5AzHEuUaoltNuldNxZ82DHUuq7cjZwffaSoGm5ZoaiDD4CuvcbfGa0j/exec";
 window.APPS_SCRIPT_TOKEN = "afojvbkrghreouugwhar4n8";
 var APPS_SCRIPT_URL = window.APPS_SCRIPT_URL;
 var APPS_SCRIPT_TOKEN = window.APPS_SCRIPT_TOKEN;
@@ -1436,7 +1436,8 @@ function parsePayloadToRaw(payload){
     const mcap=String(o['market cap']||o.marketcap||o.marketCap||'').trim();
     const beta=toNum(o.beta);
     const potm=toNum(o['p(otm)']??o.potm??o['p otm']??null);
-    return {rowid,t,s,exp,str,con,spot,bid,ask,mid,pt,ok,ytd,sector,mcap,beta,potm};
+    const delta=toNum(o.delta??null);
+    return {rowid,t,s,exp,str,con,spot,bid,ask,mid,pt,ok,ytd,sector,mcap,beta,potm,delta};
   }).filter(r=>r.t);
 }
 
@@ -1975,141 +1976,107 @@ function drawOTM(){
   const W=Math.max(320,container.clientWidth-24),H=188;
   const{ctx}=setupCanvas('cOTM',W,H); const c=C();
   const rows=ROWS.filter(r=>r.ann&&r.otm!=null);
-  if(!rows.length){ ctx.fillStyle=c.dim;ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No OTM/Ann data',W/2,H/2);return; }
-  const PAD={t:12,r:24,b:34,l:46}; const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
-  // Data-driven axes with smart rounding — no wasted space
-  const maxOTM=niceMax_(Math.max(...rows.map(r=>r.otm)), 0.02);
-  const maxAnn=niceMax_(Math.max(...rows.map(r=>r.ann)), 0.05);
-  // X axis ticks (OTM%)
-  niceTicks_(0, maxOTM, 4).forEach(val=>{
+  if(!rows.length){ ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='600 12px var(--fs)';ctx.textAlign='center';ctx.fillText('No data',W/2,H/2);return; }
+
+  const PAD={t:12,r:16,b:28,l:40}; const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  const maxOTM=niceMax_(Math.max(...rows.map(r=>r.otm)),0.02);
+  const maxAnn=niceMax_(Math.max(...rows.map(r=>r.ann)),0.05);
+
+  // Grid + ticks
+  niceTicks_(0,maxOTM,4).forEach(val=>{
     const x=PAD.l+(val/maxOTM)*cW;
     ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,5]);
     ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,PAD.t+cH);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle=c.dim;ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='center';
-    ctx.fillText(Math.round(val*100)+'%',x,PAD.t+cH+12);
+    ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='center';
+    ctx.fillText(Math.round(val*100)+'%',x,PAD.t+cH+11);
   });
-  // Y axis ticks (Ann%)
-  niceTicks_(0, maxAnn, 4).forEach(val=>{
+  niceTicks_(0,maxAnn,4).forEach(val=>{
     const y=PAD.t+cH-(val/maxAnn)*cH;
     ctx.strokeStyle=c.border;ctx.lineWidth=.4;ctx.setLineDash([2,5]);
     ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(PAD.l+cW,y);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle=c.dim;ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='right';
+    ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='right';
     ctx.fillText(Math.round(val*100)+'%',PAD.l-4,y+3);
   });
+
   // Axis labels
-  ctx.fillStyle=c.muted;ctx.font='600 7.5px Outfit,sans-serif';ctx.textAlign='center';
-  ctx.fillText('OTM % →',PAD.l+cW/2,H-2);
-  ctx.save();ctx.translate(10,PAD.t+cH/2);ctx.rotate(-Math.PI/2);
-  ctx.fillText('Ann % ↑',0,0);ctx.restore();
-  // P(OTM) color legend (top-right)
-  const hasAnyPotm = rows.some(r=>r.potm!=null);
-  if(!hasAnyPotm){
-    // Fallback: color = Ann% legend
-    const leg2=[{clr:c.green,l:'>50% ann'},{clr:c.lime,l:'>25%'},{clr:c.yellow,l:'>10%'},{clr:c.orange,l:'≤10%'}];
-    let lx2=PAD.l+cW-2, ly2=PAD.t+6;
-    ctx.font='700 6.5px Outfit,sans-serif'; ctx.textAlign='right';
-    ctx.fillStyle=c.muted; ctx.fillText('● COLOR = Ann Return',lx2,ly2); ly2+=11;
-    leg2.forEach(({clr,l})=>{
-      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx2-ctx.measureText(l).width-6,ly2-3,3,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=c.dim; ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
-      ctx.fillText(l,lx2,ly2); ly2+=10;
-    });
+  ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='600 7px Outfit,sans-serif';ctx.textAlign='center';
+  ctx.fillText('OTM%',PAD.l+cW/2,H-2);
+  ctx.save();ctx.translate(9,PAD.t+cH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillText('Ann%',0,0);ctx.restore();
+
+  // Color by delta (proximity to ITM): higher delta = more at risk
+  // delta 0 = far OTM (safe), delta 0.5 = ATM (risky for assignment)
+  const hasDelta=rows.some(r=>r.potm!=null);
+  function dotColor(r){
+    if(hasDelta && r.potm!=null){
+      // potm = 1 - |delta|: high = safe (green), low = at risk (red)
+      return r.potm>=0.75?c.green:r.potm>=0.55?c.lime:r.potm>=0.35?c.yellow:c.orange;
+    }
+    return r.ann>0.4?c.green:r.ann>0.2?c.lime:r.ann>0.08?c.yellow:c.orange;
   }
-  if(hasAnyPotm){
-    const legend=[
-      {clr:c.green,  l:'≥80% — very safe'},
-      {clr:c.lime,   l:'60–80% — safe'},
-      {clr:c.yellow, l:'40–60% — moderate'},
-      {clr:c.orange, l:'<40% — at risk'},
-    ];
-    let lx=PAD.l+cW-2, ly=PAD.t+6;
-    ctx.font='700 6.5px Outfit,sans-serif'; ctx.textAlign='right';
-    ctx.fillStyle=c.muted; ctx.fillText('● COLOR = P(Expire OTM)',lx,ly); ly+=11;
-    legend.forEach(({clr,l})=>{
-      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx-ctx.measureText(l).width-6,ly-3,3,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=c.dim; ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
-      ctx.fillText(l,lx,ly); ly+=10;
-    });
-  }
-  // First pass: compute dot positions and sizes
-  const dots = rows.map(r=>{
-    const x=PAD.l+(r.otm/maxOTM)*cW;
-    const y=PAD.t+cH-(r.ann/maxAnn)*cH;
-    const clr=r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange;
-    const rad=Math.max(4,Math.min(10,(r.pt||30)/30));
-    return {x:Math.round(x),y:Math.round(y),clr,rad,t:r.t};
+
+  // Legend — compact, top-right
+  const legItems = hasDelta
+    ? [{clr:c.green,l:'Safe (δ<0.25)'},{clr:c.lime,l:'Moderate (δ<0.45)'},{clr:c.yellow,l:'Watch (δ<0.65)'},{clr:c.orange,l:'At risk'}]
+    : [{clr:c.green,l:'Ann >40%'},{clr:c.lime,l:'>20%'},{clr:c.yellow,l:'>8%'},{clr:c.orange,l:'≤8%'}];
+  const legTitle = hasDelta ? 'Delta risk' : 'Ann return';
+  let lx=PAD.l+cW+PAD.r-4, ly=PAD.t+2;
+  ctx.font='700 6px Outfit,sans-serif';ctx.textAlign='right';
+  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText(legTitle,lx,ly); ly+=9;
+  legItems.forEach(({clr,l})=>{
+    ctx.fillStyle=clr;ctx.beginPath();ctx.arc(lx-ctx.measureText(l).width-5,ly-3,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='500 6px Outfit,sans-serif';ctx.textAlign='right';
+    ctx.fillText(l,lx,ly); ly+=9;
   });
 
-  // Draw dots first
+  // Dots
+  const dots=rows.map(r=>({
+    x:Math.round(PAD.l+(r.otm/maxOTM)*cW),
+    y:Math.round(PAD.t+cH-(r.ann/maxAnn)*cH),
+    clr:dotColor(r),
+    rad:Math.max(4,Math.min(10,(r.pt||30)/30)),
+    t:r.t
+  }));
   dots.forEach(d=>{
     ctx.beginPath();ctx.arc(d.x,d.y,d.rad,0,Math.PI*2);
     ctx.fillStyle=d.clr;ctx.fill();
-    ctx.strokeStyle=d.clr+'44';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle=d.clr+'33';ctx.lineWidth=1;ctx.stroke();
   });
 
-  // Second pass: smart label placement with collision avoidance
+  // Ticker labels — collision-avoiding, always white, never on dot
   ctx.font='600 7px IBM Plex Mono,monospace';
-  const labelH=8, labelPad=2;
-  const placed=[]; // [{x1,y1,x2,y2}] bounding boxes of placed labels
-
-  // Try 8 candidate positions around each dot, pick first that doesn't collide
+  const labelH=8,labelPad=3;
+  const placed=[];
   const offsets=[
-    {dx:0,   dy:-1, ax:'center', ay:'bottom'}, // above (preferred)
-    {dx:1,   dy:-1, ax:'left',   ay:'bottom'}, // above-right
-    {dx:-1,  dy:-1, ax:'right',  ay:'bottom'}, // above-left
-    {dx:1,   dy:0,  ax:'left',   ay:'middle'}, // right
-    {dx:-1,  dy:0,  ax:'right',  ay:'middle'}, // left
-    {dx:0,   dy:1,  ax:'center', ay:'top'},    // below
-    {dx:1,   dy:1,  ax:'left',   ay:'top'},    // below-right
-    {dx:-1,  dy:1,  ax:'right',  ay:'top'},    // below-left
+    {dx:0,dy:-1,ax:'center'},{dx:1,dy:-1,ax:'left'},{dx:-1,dy:-1,ax:'right'},
+    {dx:1,dy:0,ax:'left'},{dx:-1,dy:0,ax:'right'},
+    {dx:0,dy:1,ax:'center'},{dx:1,dy:1,ax:'left'},{dx:-1,dy:1,ax:'right'},
   ];
-
-  function overlaps(bx1,by1,bx2,by2){
-    return placed.some(p=>!(bx2<p.x1||bx1>p.x2||by2<p.y1||by1>p.y2));
-  }
-  function clampInChart(bx1,bx2,by1,by2){
-    return bx1>=PAD.l && bx2<=PAD.l+cW && by1>=PAD.t && by2<=PAD.t+cH+16;
-  }
+  function overlaps(x1,y1,x2,y2){ return placed.some(p=>!(x2<p.x1||x1>p.x2||y2<p.y1||y1>p.y2)); }
+  function inChart(x1,x2,y1,y2){ return x1>=PAD.l&&x2<=PAD.l+cW+PAD.r&&y1>=PAD.t-2&&y2<=H-2; }
 
   dots.forEach(d=>{
     const tw=ctx.measureText(d.t).width;
-    const dist=d.rad+labelPad+2;
+    const dist=d.rad+labelPad+1;
     for(const o of offsets){
-      let lx,ly;
-      if(o.dx===0)       lx=d.x;
-      else if(o.dx===1)  lx=d.x+dist;
-      else               lx=d.x-dist;
-
-      if(o.dy===-1) ly=d.y-dist;
-      else if(o.dy===0) ly=d.y+3;
-      else              ly=d.y+dist+labelH;
-
-      // Bounding box of label
-      let bx1,bx2;
-      if(o.ax==='center'){ bx1=lx-tw/2; bx2=lx+tw/2; }
-      else if(o.ax==='left'){ bx1=lx; bx2=lx+tw; }
-      else { bx1=lx-tw; bx2=lx; }
-      const by1=ly-labelH, by2=ly+2;
-
-      if(!overlaps(bx1-1,by1-1,bx2+1,by2+1) && clampInChart(bx1,bx2,by1,by2)){
-        // Draw subtle leader line if label is far from dot
+      const lx=o.dx===0?d.x:o.dx===1?d.x+dist:d.x-dist;
+      const ly=o.dy===-1?d.y-dist:o.dy===0?d.y+3:d.y+dist+labelH;
+      const bx1=o.ax==='center'?lx-tw/2:o.ax==='left'?lx:lx-tw;
+      const bx2=o.ax==='center'?lx+tw/2:o.ax==='left'?lx+tw:lx;
+      const by1=ly-labelH,by2=ly+2;
+      if(!overlaps(bx1-1,by1-1,bx2+1,by2+1)&&inChart(bx1,bx2,by1,by2)){
         const cx2=o.ax==='center'?lx:o.ax==='left'?bx1:bx2;
-        const lineDist=Math.hypot(cx2-d.x,(ly-4)-d.y);
-        if(lineDist>d.rad+8){
-          ctx.strokeStyle=d.clr+'55';ctx.lineWidth=.6;ctx.setLineDash([2,3]);
-          ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(cx2,(ly-4));ctx.stroke();ctx.setLineDash([]);
+        if(Math.hypot(cx2-d.x,(ly-4)-d.y)>d.rad+6){
+          ctx.strokeStyle=d.clr+'44';ctx.lineWidth=.5;ctx.setLineDash([2,3]);
+          ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(cx2,ly-4);ctx.stroke();ctx.setLineDash([]);
         }
-        // Draw label
-        ctx.fillStyle=c.text;ctx.textAlign=o.ax==='middle'?'center':o.ax;
-        ctx.fillText(d.t, lx, ly);
+        ctx.fillStyle='rgba(255,255,255,0.85)';ctx.textAlign=o.ax;
+        ctx.fillText(d.t,lx,ly);
         placed.push({x1:bx1-1,y1:by1-1,x2:bx2+1,y2:by2+1});
         return;
       }
     }
-    // All positions collide — draw label directly on dot in contrasting color (last resort)
-    ctx.fillStyle='#000';ctx.textAlign='center';
-    ctx.fillText(d.t,d.x,d.y+3);
-    placed.push({x1:d.x-tw/2,y1:d.y-4,x2:d.x+tw/2,y2:d.y+6});
+    // No room — skip
   });
 }
 
@@ -2192,7 +2159,7 @@ const COLS=[
   {k:'t',lbl:'Ticker',al:'left'},{k:'s',lbl:'Shares',al:'right'},
   {k:'exp',lbl:'Expiry',al:'center'},{k:'dte',lbl:'DTE',al:'center'},
   {k:'str',lbl:'Strike',al:'right'},{k:'spot',lbl:'Spot',al:'right'},
-  {k:'ytd',lbl:'YTD %',al:'right'},{k:'otm',lbl:'OTM %',al:'right'},
+  {k:'ytd',lbl:'YTD %',al:'right'},{k:'otm',lbl:'OTM %',al:'right'},{k:'delta',lbl:'Delta',al:'right'},
   {k:'pv',lbl:'Value',al:'right'},{k:'bid',lbl:'Bid',al:'right'},
   {k:'ask',lbl:'Ask',al:'right'},{k:'mid',lbl:'Mid',al:'right'},
   {k:'pt',lbl:'Premium',al:'right'},{k:'upfront',lbl:'Upfront%',al:'right'},
@@ -2219,6 +2186,7 @@ function cellTxt(k,r){
   if(k==='spot')  return r.spot!=null?'$'+Math.round(r.spot).toLocaleString():'—';
   if(k==='ytd')   return fY(r.ytd||0);
   if(k==='otm')   return r.otm!=null?fP(r.otm):'—';
+  if(k==='delta') return r.delta!=null?r.delta.toFixed(2):'—';
   if(k==='pv')    return fK(r.pv);
   if(k==='bid')   return f$(r.bid);
   if(k==='ask')   return f$(r.ask);
