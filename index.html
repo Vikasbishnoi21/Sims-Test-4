@@ -1106,7 +1106,7 @@ function drawCmpBar(canvasId, rows){
     const x=PAD.l+i*gap+(gap-bW)/2;
     const bH=(r.ann/maxAnn)*cH;
     const y=PAD.t+cH-bH;
-    // Color by P(OTM): green=safe, yellow=moderate, red=at risk
+    // Color by P(OTM) if available, else by Ann% as fallback
     const clr=r.potm!=null
       ? (r.potm>=0.8?c.green:r.potm>=0.6?c.lime:r.potm>=0.4?c.yellow:c.orange)
       : (r.ann>0.5?c.green:r.ann>0.25?c.lime:r.ann>0.10?c.yellow:c.orange);
@@ -2003,14 +2003,32 @@ function drawOTM(){
   ctx.fillText('Ann % ↑',0,0);ctx.restore();
   // P(OTM) color legend (top-right)
   const hasAnyPotm = rows.some(r=>r.potm!=null);
+  if(!hasAnyPotm){
+    // Fallback: color = Ann% legend
+    const leg2=[{clr:c.green,l:'>50% ann'},{clr:c.lime,l:'>25%'},{clr:c.yellow,l:'>10%'},{clr:c.orange,l:'≤10%'}];
+    let lx2=PAD.l+cW-2, ly2=PAD.t+6;
+    ctx.font='700 6.5px Outfit,sans-serif'; ctx.textAlign='right';
+    ctx.fillStyle=c.muted; ctx.fillText('● COLOR = Ann Return',lx2,ly2); ly2+=11;
+    leg2.forEach(({clr,l})=>{
+      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx2-ctx.measureText(l).width-6,ly2-3,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=c.dim; ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
+      ctx.fillText(l,lx2,ly2); ly2+=10;
+    });
+  }
   if(hasAnyPotm){
-    const legend=[{clr:c.green,l:'≥80%'},{clr:c.lime,l:'60%'},{clr:c.yellow,l:'40%'},{clr:c.orange,l:'<40%'}];
-    let lx=PAD.l+cW-2, ly=PAD.t+4;
-    ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
-    ctx.fillStyle=c.dim; ctx.fillText('P(OTM)',lx,ly); ly+=9;
+    const legend=[
+      {clr:c.green,  l:'≥80% — very safe'},
+      {clr:c.lime,   l:'60–80% — safe'},
+      {clr:c.yellow, l:'40–60% — moderate'},
+      {clr:c.orange, l:'<40% — at risk'},
+    ];
+    let lx=PAD.l+cW-2, ly=PAD.t+6;
+    ctx.font='700 6.5px Outfit,sans-serif'; ctx.textAlign='right';
+    ctx.fillStyle=c.muted; ctx.fillText('● COLOR = P(Expire OTM)',lx,ly); ly+=11;
     legend.forEach(({clr,l})=>{
-      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx-3,ly-3,3,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=c.dim; ctx.fillText(l,lx-8,ly); ly+=9;
+      ctx.fillStyle=clr; ctx.beginPath(); ctx.arc(lx-ctx.measureText(l).width-6,ly-3,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=c.dim; ctx.font='500 6.5px Outfit,sans-serif'; ctx.textAlign='right';
+      ctx.fillText(l,lx,ly); ly+=10;
     });
   }
   // First pass: compute dot positions and sizes
@@ -2189,10 +2207,16 @@ const fY=v=>(v>=0?'+':'')+Number(v).toFixed(1)+'%';
 function cellTxt(k,r){
   if(k==='t')     return r.t;
   if(k==='s')     return r.s ?? '';
-  if(k==='exp')   return r.exp ? r.exp : '';
+  if(k==='exp'){
+    if(!r.exp) return '';
+    const d=new Date(r.exp+'T00:00:00');
+    if(isNaN(d)) return r.exp;
+    const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+    return mon+' '+d.getDate();
+  }
   if(k==='dte')   return r.dte ?? '—';
   if(k==='str')   return r.str ?? '';
-  if(k==='spot')  return f$(r.spot);
+  if(k==='spot')  return r.spot!=null?'$'+Math.round(r.spot).toLocaleString():'—';
   if(k==='ytd')   return fY(r.ytd||0);
   if(k==='otm')   return r.otm!=null?fP(r.otm):'—';
   if(k==='pv')    return fK(r.pv);
