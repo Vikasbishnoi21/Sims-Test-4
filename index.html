@@ -2015,18 +2015,37 @@ function drawOTM(){
     return r.ann>0.4?c.green:r.ann>0.2?c.lime:r.ann>0.08?c.yellow:c.orange;
   }
 
-  // Legend — compact, top-right
+  // Legend — frosted box, bottom-left
   const legItems = hasDelta
-    ? [{clr:c.green,l:'Safe (δ<0.25)'},{clr:c.lime,l:'Moderate (δ<0.45)'},{clr:c.yellow,l:'Watch (δ<0.65)'},{clr:c.orange,l:'At risk'}]
-    : [{clr:c.green,l:'Ann >40%'},{clr:c.lime,l:'>20%'},{clr:c.yellow,l:'>8%'},{clr:c.orange,l:'≤8%'}];
-  const legTitle = hasDelta ? 'Delta risk' : 'Ann return';
-  let lx=PAD.l+cW+PAD.r-4, ly=PAD.t+2;
-  ctx.font='700 6px Outfit,sans-serif';ctx.textAlign='right';
-  ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText(legTitle,lx,ly); ly+=9;
+    ? [{clr:c.green,l:'Safe  δ < 0.25'},{clr:c.lime,l:'Moderate  δ < 0.45'},{clr:c.yellow,l:'Watch  δ < 0.65'},{clr:c.orange,l:'At risk  δ ≥ 0.65'}]
+    : [{clr:c.green,l:'Ann > 40%'},{clr:c.lime,l:'Ann > 20%'},{clr:c.yellow,l:'Ann > 8%'},{clr:c.orange,l:'Ann ≤ 8%'}];
+  const legTitle = hasDelta ? 'COLOR  =  DELTA RISK' : 'COLOR  =  ANN RETURN';
+  ctx.font='600 6px Outfit,sans-serif';
+  const itemH=11, titleH=14, padX=8, padY=6;
+  const boxW=Math.max(...legItems.map(({l})=>ctx.measureText(l).width))+padX*2+10;
+  const boxH=titleH+legItems.length*itemH+padY;
+  const bx=PAD.l+4, by=PAD.t+cH-boxH-2;
+  // Box background
+  ctx.fillStyle='rgba(10,20,40,0.62)';
+  ctx.beginPath();
+  ctx.roundRect(bx,by,boxW,boxH,4);
+  ctx.fill();
+  // Box border
+  ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=0.5;
+  ctx.stroke();
+  // Title
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.font='700 5.5px Outfit,sans-serif';ctx.textAlign='left';
+  ctx.fillText(legTitle, bx+padX, by+padY+5);
+  // Items
+  let iy=by+titleH+padY-2;
   legItems.forEach(({clr,l})=>{
-    ctx.fillStyle=clr;ctx.beginPath();ctx.arc(lx-ctx.measureText(l).width-5,ly-3,3,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='500 6px Outfit,sans-serif';ctx.textAlign='right';
-    ctx.fillText(l,lx,ly); ly+=9;
+    ctx.fillStyle=clr;
+    ctx.beginPath();ctx.arc(bx+padX+3, iy-2.5, 3, 0, Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.font='500 6px Outfit,sans-serif';ctx.textAlign='left';
+    ctx.fillText(l, bx+padX+10, iy);
+    iy+=itemH;
   });
 
   // Dots
